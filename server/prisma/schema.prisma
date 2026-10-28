@@ -1,0 +1,114 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique @db.VarChar(50)
+  name        String   @unique @db.VarChar(80)
+  description String   @db.VarChar(300)
+  users       User[]
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@map("roles")
+}
+
+model Department {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique @db.VarChar(100)
+  users     User[]
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("departments")
+}
+
+model User {
+  id             String        @id @default(uuid()) @db.Uuid
+  name           String        @db.VarChar(150)
+  email          String        @unique @db.VarChar(254)
+  passwordHash   String        @map("password_hash")
+  roleId         String        @map("role_id") @db.Uuid
+  role           Role          @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  status         AccountStatus @default(ACTIVE)
+  departmentId   String?       @map("department_id") @db.Uuid
+  department     Department?   @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  profileImage   String?       @map("profile_image")
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  lastLoginAt    DateTime?     @map("last_login_at") @db.Timestamptz(3)
+  auditLogs      AuditLog[]
+  createdClients Client[]
+
+  @@index([roleId])
+  @@index([departmentId])
+  @@index([status])
+  @@map("users")
+}
+
+enum ClientType {
+  INDIVIDUAL
+  BUSINESS
+}
+
+model Client {
+  id            String        @id @default(uuid()) @db.Uuid
+  code          String        @unique @db.VarChar(40)
+  name          String        @db.VarChar(180)
+  type          ClientType    @default(BUSINESS)
+  contactPerson String?       @map("contact_person") @db.VarChar(150)
+  email         String?       @db.VarChar(254)
+  phone         String?       @db.VarChar(50)
+  address       String?       @db.VarChar(500)
+  industry      String?       @db.VarChar(120)
+  status        AccountStatus @default(ACTIVE)
+  notes         String?       @db.VarChar(4000)
+  createdById   String        @map("created_by_id") @db.Uuid
+  createdBy     User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  archivedAt    DateTime?     @map("archived_at") @db.Timestamptz(3)
+
+  @@index([archivedAt, status, name])
+  @@index([createdById])
+  @@map("clients")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action     String   @db.VarChar(100)
+  entityType String   @map("entity_type") @db.VarChar(80)
+  entityId   String?  @map("entity_id") @db.VarChar(100)
+  timestamp  DateTime @default(now()) @db.Timestamptz(3)
+  metadata   Json?
+
+  @@index([actorId, timestamp])
+  @@index([entityType, entityId])
+  @@index([timestamp])
+  @@map("audit_logs")
+}
+
+// connect-pg-simple owns row serialization. Identity stays inside the session payload;
+// active user/role/status is resolved from users on every protected request.
+model Session {
+  sid    String   @id @db.VarChar
+  sess   Json     @db.Json
+  expire DateTime @db.Timestamp(6)
+
+  @@index([expire], map: "IDX_session_expire")
+  @@map("sessions")
+}

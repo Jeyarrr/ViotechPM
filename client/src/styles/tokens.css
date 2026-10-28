@@ -1,0 +1,36 @@
+/* ViotechPM enterprise palette. Keep component and chart colors tied to these tokens. */
+:root {
+  --background: #050507;
+  --surface: #0b0b0f;
+  --sidebar: #170308;
+  --card: #22040b;
+  --surface-hover: #2b0610;
+  --primary: #df0b3e;
+  --action: #f41446;
+  --glow: #ff355d;
+  --crimson: #a0062c;
+  --foreground: #f5f5f7;
+  --text-secondary: #b6b8c2;
+  --text-muted: #7e828d;
+  --border: #3a0a16;
+  --card-border: #4a0d1c;
+  --input-border: #5a1324;
+  --panel-gradient: linear-gradient(135deg, #22040b 0%, #140409 48%, #100407 100%);
+  --sidebar-gradient: linear-gradient(165deg, #24030b 0%, #170308 48%, #100407 100%);
+  --canvas-dark: #100104;
+  --canvas-red: #a0062c;
+  --frame-border: #7c0b26;
+  --frame-radius: 20px;
+  --frame-gutter: 32px;
+  --accent-soft: color-mix(in srgb, var(--primary) 12%, transparent);
+  --accent-border: color-mix(in srgb, var(--primary) 40%, var(--border));
+  --focus-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
+  --action-shadow: 0 3px 14px color-mix(in srgb, var(--glow) 12%, transparent);
+  --chart-budget: var(--primary);
+  --chart-expenses: var(--text-secondary);
+  --chart-grid: var(--border);
+  --radius-card: 8px;
+  --radius-control: 6px;
+  --space-panel: 18px;
+  --space-grid: 16px;
+}

@@ -1,0 +1,283 @@
+/* Core modules extend the official login tokens without changing the palette. */
+.crud-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-grid);
+  min-width: 0;
+}
+.crud-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: var(--space-panel);
+  border-bottom: 1px solid var(--border);
+}
+.crud-toolbar .input {
+  width: auto;
+  min-width: 120px;
+  flex: 1;
+  height: 38px;
+  font-size: 12px;
+}
+.crud-toolbar .crud-search {
+  flex: 2;
+  min-width: min(240px, 100%);
+}
+.crud-table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+}
+.crud-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 12px;
+}
+.crud-table th {
+  color: var(--text-secondary);
+  font-weight: 500;
+  background: var(--surface);
+  padding: 13px 16px;
+  white-space: nowrap;
+}
+.crud-table td {
+  padding: 14px 16px;
+  border-top: 1px solid var(--border);
+  color: var(--foreground);
+  max-width: 300px;
+  overflow-wrap: anywhere;
+}
+.crud-table tbody tr:hover {
+  background: var(--surface-hover);
+}
+.crud-table small {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 11px;
+  margin-top: 5px;
+}
+.record-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  color: var(--foreground);
+}
+.record-link:hover {
+  color: var(--glow);
+}
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.crud-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  padding: 14px 16px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.crud-pagination > div {
+  display: flex;
+  gap: 8px;
+}
+.record-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 8px;
+  border: 1px solid var(--card-border);
+  border-radius: 5px;
+  background: var(--accent-soft);
+  color: var(--foreground);
+  font-size: 10px;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+.badge-inactive,
+.badge-archived,
+.badge-cancelled {
+  color: var(--text-secondary);
+  background: var(--surface);
+}
+.badge-critical,
+.badge-blocked {
+  border-color: var(--primary);
+}
+.crud-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: color-mix(in srgb, var(--background) 80%, transparent);
+  backdrop-filter: blur(4px);
+}
+.crud-dialog {
+  position: fixed;
+  z-index: 81;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(700px, calc(100% - 32px));
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  background: var(--panel-gradient);
+  border: 1px solid var(--input-border);
+  border-top-color: var(--primary);
+  border-radius: var(--radius-card);
+  padding: 24px;
+  box-shadow: 0 0 40px var(--accent-soft);
+}
+.crud-dialog-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.crud-dialog-heading h2 {
+  font-size: 20px;
+  letter-spacing: -0.5px;
+}
+.crud-dialog-heading p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 8px;
+  line-height: 1.6;
+}
+.crud-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.crud-form-grid .form-field {
+  margin: 0;
+  min-width: 0;
+}
+.crud-form-grid .field-wide {
+  grid-column: 1 / -1;
+}
+.crud-form-grid .input {
+  width: 100%;
+}
+.crud-form-grid textarea {
+  resize: vertical;
+  height: auto;
+  min-height: 88px;
+}
+.field-hint {
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+}
+.crud-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.crud-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 180px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.crud-toast {
+  position: sticky;
+  top: 12px;
+  z-index: 45;
+  align-self: flex-end;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--surface-hover);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-control);
+  color: var(--foreground);
+  font-size: 12px;
+  box-shadow: var(--action-shadow);
+}
+.record-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 20px;
+  margin: 0;
+}
+.record-details > div {
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+  min-width: 0;
+}
+.record-details dt {
+  color: var(--text-secondary);
+  font-size: 11px;
+  margin-bottom: 8px;
+}
+.record-details dd {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+select.input {
+  color-scheme: dark;
+}
+@media (max-width: 600px) {
+  .crud-form-grid,
+  .record-details {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .crud-dialog {
+    padding: 20px 16px;
+  }
+  .crud-table thead {
+    display: none;
+  }
+  .crud-table,
+  .crud-table tbody,
+  .crud-table tr,
+  .crud-table td {
+    display: block;
+    width: 100%;
+    max-width: none;
+  }
+  .crud-table tr {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--card-border);
+  }
+  .crud-table td {
+    display: grid;
+    grid-template-columns: 80px minmax(0, 1fr);
+    gap: 10px;
+    border: 0;
+    padding: 8px 14px;
+  }
+  .crud-table td::before {
+    content: attr(data-label);
+    color: var(--text-secondary);
+    font-size: 11px;
+  }
+  .crud-table td > small {
+    grid-column: 2;
+  }
+  .crud-toolbar .input {
+    min-width: 0;
+    flex-basis: 40%;
+  }
+  .crud-toolbar .crud-search {
+    flex-basis: 100%;
+  }
+  .crud-form-grid .input {
+    font-size: 16px;
+  }
+}
