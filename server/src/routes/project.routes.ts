@@ -10,11 +10,15 @@ import {
   projectInclude,
   validateProject,
   isAdmin,
+  projectProgress,
 } from '../services/project.service.js';
+import { memberRoutes, memberSelect } from './member.routes.js';
+import { taskScope, taskInclude, today } from '../services/task.service.js';
 
 export function projectRoutes(db: PrismaClient) {
   const router = Router();
   router.use(requirePermission('projects:read'));
+  router.use('/:id/members', memberRoutes(db));
   router.get('/', async (req, res) => {
     const q = projectListSchema.parse(req.query);
     const where: Prisma.ProjectWhereInput = {
@@ -43,9 +47,13 @@ export function projectRoutes(db: PrismaClient) {
       }),
       db.project.count({ where }),
     ]);
+    const progress = await projectProgress(
+      db,
+      items.map((item) => item.id),
+    );
     res.json({
       data: pageResult(
-        items.map((item) => ({ ...item, progress: 0, totalTasks: 0, completedTasks: 0 })),
+        items.map((item) => ({ ...item, ...progress.get(item.id) })),
         total,
         q.page,
         q.pageSize,
@@ -56,7 +64,12 @@ export function projectRoutes(db: PrismaClient) {
     const id = idSchema.parse(req.params.id);
     const project = await accessibleProject(db, id, req.user!);
     const activity = await db.auditLog.findMany({
-      where: { entityType: 'Project', entityId: id },
+      where: {
+        OR: [
+          { entityType: 'Project', entityId: id },
+          { entityType: 'Task', metadata: { path: ['projectId'], equals: id } },
+        ],
+      },
       orderBy: { timestamp: 'desc' },
       take: 20,
       select: { id: true, action: true, timestamp: true, actor: { select: { name: true } } },
@@ -64,11 +77,19 @@ export function projectRoutes(db: PrismaClient) {
     res.json({
       data: {
         ...project,
-        progress: 0,
-        totalTasks: 0,
-        completedTasks: 0,
-        members: [],
-        tasks: [],
+        ...(await projectProgress(db, [id])).get(id),
+        members: await db.projectMember.findMany({
+          where: { projectId: id },
+          select: memberSelect,
+          orderBy: { assignedAt: 'asc' },
+          take: 20,
+        }),
+        tasks: await db.task.findMany({
+          where: { projectId: id, archivedAt: null, ...taskScope(req.user!) },
+          include: taskInclude,
+          orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],
+          take: 10,
+        }),
         activity,
         canManage:
           isAdmin(req.user!) ||
@@ -85,6 +106,14 @@ export function projectRoutes(db: PrismaClient) {
         include: projectInclude,
       });
       await audit(tx, req.user!.id, 'project.created', 'Project', item.id, input);
+      await tx.projectMember.create({
+        data: {
+          projectId: item.id,
+          userId: item.managerId,
+          role: 'Project manager',
+          assignedById: req.user!.id,
+        },
+      });
       return item;
     });
     res.status(201).json({ data: item });
@@ -98,9 +127,35 @@ export function projectRoutes(db: PrismaClient) {
       await validateProject(tx, { ...before, ...input }, req.user!, before);
       const item = await tx.project.update({
         where: { id },
-        data: { ...input, actualCompletionDate: null },
+        data: {
+          ...input,
+          actualCompletionDate:
+            (input.status ?? before.status) === 'COMPLETED'
+              ? (before.actualCompletionDate ?? today())
+              : null,
+        },
         include: projectInclude,
       });
+      if (before.managerId !== item.managerId) {
+        await tx.projectMember.updateMany({
+          where: { projectId: id, userId: before.managerId },
+          data: { role: 'Member' },
+        });
+        await tx.projectMember.upsert({
+          where: { projectId_userId: { projectId: id, userId: item.managerId } },
+          create: {
+            projectId: id,
+            userId: item.managerId,
+            role: 'Project manager',
+            assignedById: req.user!.id,
+          },
+          update: { role: 'Project manager' },
+        });
+        await audit(tx, req.user!.id, 'project.manager_assigned', 'Project', id, {
+          before: before.managerId,
+          after: item.managerId,
+        });
+      }
       await audit(
         tx,
         req.user!.id,

@@ -13,7 +13,16 @@ export function lookupRoutes(db: PrismaClient) {
   router.use(requirePermission('projects:read'));
   router.get('/:kind', async (req, res) => {
     const kind = z
-      .enum(['clients', 'managers', 'departments', 'categories', 'roles', 'employees', 'projects'])
+      .enum([
+        'clients',
+        'managers',
+        'departments',
+        'categories',
+        'roles',
+        'employees',
+        'projects',
+        'assignees',
+      ])
       .parse(req.params.kind);
     const q = listSchema
       .extend({ includeInactive: z.enum(['false', 'true']).default('false') })
@@ -41,10 +50,16 @@ export function lookupRoutes(db: PrismaClient) {
         db.client.findMany({ where, ...paging, select: { id: true, name: true, code: true } }),
         db.client.count({ where }),
       ]);
-    } else if (kind === 'managers' || kind === 'employees') {
+    } else if (kind === 'managers' || kind === 'employees' || kind === 'assignees') {
       const where = {
         ...search,
         status: 'ACTIVE' as const,
+        ...(kind === 'assignees'
+          ? {
+              memberships: { some: { project: projectScope(user) } },
+              ...(user.role.key === 'employee' ? { id: user.id } : {}),
+            }
+          : {}),
         ...(kind === 'managers'
           ? {
               role: { key: { in: ['super_admin', 'project_manager'] } },

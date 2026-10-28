@@ -11,6 +11,8 @@ import { Card } from '@/components/ui/card';
 import { ErrorState, EmptyState } from '@/components/shared/feedback';
 import { RecordTable, ConfirmAction, StatusBadge, Notice } from '@/components/shared/crud';
 import { ProjectEditor, CategoryManager } from '@/components/shared/project-editor';
+import { ProjectTeam } from '@/components/shared/project-team';
+import { TaskEditor } from '@/components/shared/task-editor';
 import type { ProjectRecord, PageResult } from '@/types/core';
 
 export function ProjectsPage() {
@@ -265,6 +267,8 @@ export function ProjectDetailsPage() {
   const { id } = useParams();
   const [editing, setEditing] = useState(false),
     [notice, setNotice] = useState('');
+  const [teamOpen, setTeamOpen] = useState(false),
+    [taskOpen, setTaskOpen] = useState(false);
   const query = useQuery({
     queryKey: ['core', 'project', id],
     queryFn: () => api.get<ProjectRecord>(`/projects/${id}`),
@@ -340,17 +344,54 @@ export function ProjectDetailsPage() {
             {project.completedTasks} completed / {project.totalTasks} current tasks
           </p>
           <h2 className="card-title detail-subheading">Project team</h2>
-          <p className="project-description">{project.manager.name} · Project manager</p>
-          <p className="field-hint">No additional team members assigned.</p>
+          <ul className="data-list">
+            {project.members?.slice(0, 5).map((member) => (
+              <li key={member.id}>
+                <span>
+                  {member.user.name}
+                  <small>{member.role}</small>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <Button variant="outline" size="sm" onClick={() => setTeamOpen(true)}>
+            View project team
+          </Button>
         </Card>
       </div>
       <Card className="detail-panel">
         <h2 className="card-title">Related tasks</h2>
-        <EmptyState
-          icon={FolderKanban}
-          title="No tasks yet"
-          description="Project tasks will appear here when work is assigned."
-        />
+        <div className="row-actions">
+          <Button asChild variant="outline" size="sm">
+            <Link to={`/tasks?projectId=${project.id}`}>View all tasks</Link>
+          </Button>
+          {project.canManage && !project.archivedAt && (
+            <Button size="sm" onClick={() => setTaskOpen(true)}>
+              Add task
+            </Button>
+          )}
+        </div>
+        {project.tasks?.length ? (
+          <ul className="data-list">
+            {project.tasks.map((task) => (
+              <li key={task.id}>
+                <span>
+                  {task.title}
+                  <small>
+                    {task.assignee?.name ?? 'Unassigned'} · {task.dueDate.slice(0, 10)}
+                  </small>
+                </span>
+                <StatusBadge value={task.status} />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState
+            icon={FolderKanban}
+            title="No tasks yet"
+            description="Project tasks will appear here when work is assigned."
+          />
+        )}
       </Card>
       <Card className="detail-panel">
         <h2 className="card-title">Recent activity</h2>
@@ -371,6 +412,14 @@ export function ProjectDetailsPage() {
           project={project}
           onClose={() => setEditing(false)}
           onSaved={() => setNotice('Project updated.')}
+        />
+      )}
+      {teamOpen && <ProjectTeam project={project} onClose={() => setTeamOpen(false)} />}
+      {taskOpen && (
+        <TaskEditor
+          projectId={project.id}
+          onClose={() => setTaskOpen(false)}
+          onSaved={() => setNotice('Task saved.')}
         />
       )}
     </div>

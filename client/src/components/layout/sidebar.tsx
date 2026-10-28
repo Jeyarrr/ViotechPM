@@ -47,9 +47,9 @@ export function Sidebar({
                     <item.icon size={18} strokeWidth={1.7} />
                     <span className={collapsed ? 'sr-only' : ''}>{item.title}</span>
                     {!collapsed &&
-                      !['/', '/profile', '/clients', '/projects'].includes(item.path) && (
-                        <span className="soon-dot" aria-label="Coming in a future phase" />
-                      )}
+                      !['/', '/profile', '/clients', '/projects', '/team', '/tasks'].includes(
+                        item.path,
+                      ) && <span className="soon-dot" aria-label="Coming in a future phase" />}
                   </NavLink>
                 ))}
               </div>

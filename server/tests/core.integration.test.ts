@@ -131,12 +131,337 @@ afterEach(async () => {
 });
 afterAll(async () => {
   const ids = [adminId, ...Object.values(users)].filter(Boolean);
+  await db.task.deleteMany({ where: { project: { createdById: { in: ids } } } });
+  await db.projectMember.deleteMany({ where: { project: { createdById: { in: ids } } } });
   await db.project.deleteMany({ where: { createdById: { in: ids } } });
   await db.projectCategory.deleteMany({ where: { name: { contains: runId } } });
   await db.client.deleteMany({ where: { createdById: { in: ids } } });
   await db.auditLog.deleteMany({ where: { actorId: { in: ids } } });
   await db.user.deleteMany({ where: { id: { in: ids } } });
   await db.$disconnect();
+});
+
+describe('Team and tasks on PostgreSQL', () => {
+  async function setupTask(assignee = users.developer!) {
+    const project = await write(admin, 'post', '/api/projects', await projectInput());
+    expect(project.status).toBe(201);
+    const projectId = project.body.data.id as string;
+    expect(
+      (
+        await write(admin, 'post', `/api/projects/${projectId}/members`, {
+          userId: assignee,
+          role: 'Delivery',
+        })
+      ).status,
+    ).toBe(201);
+    const input = {
+      code: `TSK-${randomBytes(5).toString('hex')}`,
+      projectId,
+      title: `Task ${runId}`,
+      assigneeId: assignee,
+      priority: 'HIGH',
+      status: 'TODO',
+      startDate: '2026-10-01',
+      dueDate: '2026-10-30',
+    };
+    const task = await write(admin, 'post', '/api/tasks', input);
+    expect(task.status).toBe(201);
+    return { projectId, id: task.body.data.id as string, input };
+  }
+  it('creates secure employee accounts, edits profiles, rejects escalation, and revokes deactivated sessions', async () => {
+    const role = await db.role.findUniqueOrThrow({ where: { key: 'employee' } });
+    const newEmail = `new-${runId}@test.viotech.local`;
+    const created = await write(admin, 'post', '/api/employees', {
+      name: 'New Employee',
+      email: newEmail.toUpperCase(),
+      password,
+      roleId: role.id,
+    });
+    expect(created.status).toBe(201);
+    const id = created.body.data.id as string;
+    users.new = id;
+    expect(created.body.data).not.toHaveProperty('passwordHash');
+    expect(
+      await argon2.verify(
+        (await db.user.findUniqueOrThrow({ where: { id } })).passwordHash,
+        password,
+      ),
+    ).toBe(true);
+    expect(
+      (await write(admin, 'patch', `/api/employees/${id}`, { name: 'Updated Employee' })).status,
+    ).toBe(200);
+    expect((await admin.get(`/api/employees/${id}`)).body.data.email).toBe(newEmail);
+    expect(
+      (await write(admin, 'patch', `/api/employees/${id}`, { passwordHash: 'unsafe' })).status,
+    ).toBe(422);
+    expect(
+      (
+        await write(admin, 'post', '/api/employees', {
+          name: 'Duplicate',
+          email: newEmail,
+          password,
+          roleId: role.id,
+        })
+      ).status,
+    ).toBe(409);
+    const employee = request.agent(runtime.app);
+    expect(
+      (await write(employee, 'post', '/api/auth/login', { email: newEmail, password })).status,
+    ).toBe(200);
+    expect(
+      (
+        await write(employee, 'patch', `/api/employees/${id}`, {
+          roleId: (await db.role.findUniqueOrThrow({ where: { key: 'super_admin' } })).id,
+        })
+      ).status,
+    ).toBe(403);
+    const manager = await login('project_manager');
+    await manager.get('/api/employees').expect(200);
+    expect(
+      (
+        await write(manager, 'post', '/api/employees', {
+          name: 'Denied',
+          email: 'denied@test.local',
+          password,
+          roleId: role.id,
+        })
+      ).status,
+    ).toBe(403);
+    expect(
+      (await write(admin, 'patch', `/api/employees/${id}/status`, { status: 'INACTIVE' })).status,
+    ).toBe(200);
+    await employee.get('/api/auth/me').expect(401);
+    expect(await db.session.count({ where: { sess: { path: ['userId'], equals: id } } })).toBe(0);
+    expect(
+      (await write(admin, 'patch', `/api/employees/${id}/status`, { status: 'ACTIVE' })).status,
+    ).toBe(200);
+    expect(
+      (await db.auditLog.findMany({ where: { entityType: 'User', entityId: id } })).every(
+        (r) => !JSON.stringify(r.metadata).includes(password),
+      ),
+    ).toBe(true);
+  });
+  it('protects the last active administrator against concurrent status and role changes', async () => {
+    const others = await db.user.findMany({
+      where: { id: { not: adminId }, status: 'ACTIVE', role: { key: 'super_admin' } },
+      select: { id: true },
+    });
+    const role = await db.role.findUniqueOrThrow({ where: { key: 'employee' } });
+    try {
+      // Only isolated test fixtures; restore their exact active state in finally.
+      await db.user.updateMany({
+        where: { id: { in: others.map((r) => r.id) } },
+        data: { status: 'INACTIVE' },
+      });
+      const token = (await admin.get('/api/auth/csrf')).body.data.csrfToken as string;
+      const results = await Promise.all([
+        admin
+          .patch(`/api/employees/${adminId}/status`)
+          .set('Origin', config.CLIENT_ORIGIN)
+          .set('X-CSRF-Token', token)
+          .send({ status: 'INACTIVE' }),
+        admin
+          .patch(`/api/employees/${adminId}`)
+          .set('Origin', config.CLIENT_ORIGIN)
+          .set('X-CSRF-Token', token)
+          .send({ roleId: role.id }),
+      ]);
+      expect(results.map((r) => r.status)).toEqual([409, 409]);
+    } finally {
+      await db.user.updateMany({
+        where: { id: { in: others.map((r) => r.id) } },
+        data: { status: 'ACTIVE' },
+      });
+    }
+  });
+  it('enforces membership and per-task authorization, safe removal, and active assignment', async () => {
+    const { projectId, id } = await setupTask();
+    const developer = await login('developer'),
+      outsider = await login('it_support');
+    await developer.get(`/api/projects/${projectId}`).expect(200);
+    await outsider.get(`/api/projects/${projectId}`).expect(404);
+    await outsider.get(`/api/tasks/${id}`).expect(404);
+    expect(
+      (await write(developer, 'patch', `/api/tasks/${id}`, { title: 'Unauthorized edit' })).status,
+    ).toBe(403);
+    expect(
+      (await write(developer, 'patch', `/api/tasks/${id}/status`, { status: 'IN_PROGRESS' }))
+        .status,
+    ).toBe(200);
+    expect(
+      (await write(admin, 'delete', `/api/projects/${projectId}/members/${users.developer}`))
+        .status,
+    ).toBe(409);
+    expect(
+      (await write(admin, 'patch', `/api/tasks/${id}`, { assigneeId: users.it_support })).status,
+    ).toBe(409);
+    expect((await write(admin, 'patch', `/api/tasks/${id}`, { assigneeId: null })).status).toBe(
+      200,
+    );
+    expect(
+      (await write(admin, 'delete', `/api/projects/${projectId}/members/${users.developer}`))
+        .status,
+    ).toBe(200);
+    await developer.get(`/api/tasks/${id}`).expect(404);
+    expect(
+      (await write(admin, 'delete', `/api/projects/${projectId}/members/${users.project_manager}`))
+        .status,
+    ).toBe(409);
+    expect(
+      (
+        await write(admin, 'post', `/api/projects/${projectId}/members`, {
+          userId: users.project_manager,
+        })
+      ).status,
+    ).toBe(409);
+    const inactiveRole = await db.role.findUniqueOrThrow({ where: { key: 'employee' } });
+    const inactive = await db.user.create({
+      data: {
+        name: 'Inactive',
+        email: `inactive-${runId}@test.local`,
+        passwordHash: await argon2.hash(password, passwordOptions),
+        roleId: inactiveRole.id,
+        status: 'INACTIVE',
+      },
+    });
+    users.inactive = inactive.id;
+    expect(
+      (await write(admin, 'post', `/api/projects/${projectId}/members`, { userId: inactive.id }))
+        .status,
+    ).toBe(409);
+  });
+  it('calculates progress and timestamps, completes and reopens projects, and preserves archived tasks', async () => {
+    const { projectId, id } = await setupTask();
+    expect(
+      (await write(admin, 'patch', `/api/projects/${projectId}`, { status: 'COMPLETED' })).status,
+    ).toBe(409);
+    const completed = await write(admin, 'patch', `/api/tasks/${id}/status`, {
+      status: 'COMPLETED',
+    });
+    expect(completed.status).toBe(200);
+    expect(completed.body.data.completedAt).toBeTruthy();
+    expect((await admin.get(`/api/projects/${projectId}`)).body.data.progress).toBe(100);
+    expect(
+      (await write(admin, 'patch', `/api/projects/${projectId}`, { status: 'COMPLETED' })).body.data
+        .actualCompletionDate,
+    ).toBeTruthy();
+    expect(
+      (await write(admin, 'patch', `/api/tasks/${id}`, { title: 'Completed edit' })).body.data
+        .completedAt,
+    ).toBe(completed.body.data.completedAt);
+    expect(
+      (await write(admin, 'patch', `/api/tasks/${id}/status`, { status: 'TODO' })).body.data
+        .completedAt,
+    ).toBeNull();
+    const project = (await admin.get(`/api/projects/${projectId}`)).body.data;
+    expect(project.status).toBe('ACTIVE');
+    expect(project.actualCompletionDate).toBeNull();
+    expect(project.progress).toBe(0);
+    expect(
+      (await write(admin, 'patch', `/api/tasks/${id}/status`, { status: 'COMPLETED' })).status,
+    ).toBe(200);
+    expect(
+      (await write(admin, 'patch', `/api/projects/${projectId}`, { status: 'COMPLETED' })).status,
+    ).toBe(200);
+    expect((await write(admin, 'delete', `/api/tasks/${id}`)).status).toBe(200);
+    expect((await admin.get(`/api/projects/${projectId}`)).body.data).toMatchObject({
+      status: 'ACTIVE',
+      progress: 0,
+      totalTasks: 0,
+    });
+    expect((await db.task.findUniqueOrThrow({ where: { id } })).archivedAt).not.toBeNull();
+    const logs = await db.auditLog.findMany({ where: { entityType: 'Task', entityId: id } });
+    expect(logs.some((r) => r.action === 'task.completed')).toBe(true);
+    expect(logs.some((r) => r.action === 'task.archived')).toBe(true);
+  });
+  it('validates tasks, filters and paginates, and limits employees to their own work', async () => {
+    const { projectId, id, input } = await setupTask(users.employee!);
+    const employee = await login('employee');
+    const second = await write(admin, 'post', '/api/tasks', {
+      ...input,
+      code: `OTH-${runId}`,
+      assigneeId: null,
+    });
+    expect(second.status).toBe(201);
+    const own = await employee.get(`/api/tasks?projectId=${projectId}`);
+    expect(own.body.data.total).toBe(1);
+    expect(own.body.data.items[0].id).toBe(id);
+    await employee.get(`/api/tasks/${second.body.data.id}`).expect(404);
+    expect(
+      (
+        await write(employee, 'patch', `/api/tasks/${id}/status`, {
+          status: 'IN_REVIEW',
+          assigneeId: adminId,
+        })
+      ).status,
+    ).toBe(422);
+    expect(
+      (await write(employee, 'patch', `/api/tasks/${id}/status`, { status: 'IN_REVIEW' })).status,
+    ).toBe(200);
+    expect(
+      (await admin.get(`/api/tasks?projectId=${projectId}&pageSize=1`)).body.data,
+    ).toMatchObject({ total: 2, pages: 2 });
+    expect(
+      (
+        await admin.get(
+          `/api/tasks?projectId=${projectId}&status=IN_REVIEW&priority=HIGH&assigneeId=${users.employee}`,
+        )
+      ).body.data.total,
+    ).toBe(1);
+    expect(
+      (
+        await write(admin, 'post', '/api/tasks', {
+          ...input,
+          code: `BAD-${runId}`,
+          dueDate: '2026-09-01',
+        })
+      ).status,
+    ).toBe(422);
+    expect((await write(admin, 'post', '/api/tasks', input)).status).toBe(409);
+    expect(
+      (await write(admin, 'patch', `/api/tasks/${id}`, { completedAt: new Date().toISOString() }))
+        .status,
+    ).toBe(422);
+    expect((await write(admin, 'delete', `/api/projects/${projectId}`)).status).toBe(200);
+    expect(
+      (await write(employee, 'patch', `/api/tasks/${id}/status`, { status: 'COMPLETED' })).status,
+    ).toBe(409);
+    expect((await db.task.findUniqueOrThrow({ where: { id } })).status).toBe('IN_REVIEW');
+    expect((await write(admin, 'post', `/api/projects/${projectId}/restore`)).status).toBe(200);
+    expect((await employee.get(`/api/tasks?projectId=${projectId}`)).body.data.total).toBe(1);
+  });
+  it('preserves project membership during manager handoff and rejects unsafe employee deactivation', async () => {
+    const { projectId } = await setupTask();
+    expect(
+      (
+        await write(admin, 'patch', `/api/employees/${users.developer}/status`, {
+          status: 'INACTIVE',
+        })
+      ).status,
+    ).toBe(409);
+    expect(
+      (
+        await write(admin, 'patch', `/api/employees/${users.project_manager}/status`, {
+          status: 'INACTIVE',
+        })
+      ).status,
+    ).toBe(409);
+    expect(
+      (await write(admin, 'patch', `/api/projects/${projectId}`, { managerId: adminId })).status,
+    ).toBe(200);
+    const members = (await admin.get(`/api/projects/${projectId}/members`)).body.data.items as {
+      userId: string;
+      role: string;
+    }[];
+    expect(members.find((r) => r.userId === adminId)?.role).toBe('Project manager');
+    expect(members.find((r) => r.userId === users.project_manager)?.role).toBe('Member');
+    const formerManager = await login('project_manager');
+    await formerManager.get(`/api/projects/${projectId}`).expect(200);
+    expect(
+      (await write(formerManager, 'patch', `/api/projects/${projectId}`, { name: 'Not allowed' }))
+        .status,
+    ).toBe(403);
+  });
 });
 
 describe('Client management on PostgreSQL', () => {
@@ -327,10 +652,12 @@ describe('Project management on PostgreSQL', () => {
     for (const role of ['employee', 'developer', 'it_support']) {
       const agent = await login(role);
       await agent.get(`/api/projects/${mine.body.data.id}`).expect(404);
-      expect((await agent.get('/api/projects')).body.data.total).toBe(0);
+      expect((await agent.get(`/api/projects?q=${input.code}`)).body.data.total).toBe(0);
       expect((await write(agent, 'post', '/api/projects', input)).status).toBe(403);
     }
-    expect((await manager.get(`/api/projects?managerId=${adminId}`)).body.data.total).toBe(0);
+    expect(
+      (await manager.get(`/api/projects?managerId=${adminId}&q=OTHER-${runId}`)).body.data.total,
+    ).toBe(0);
   });
   it('filters and paginates projects and safely preserves archived client references', async () => {
     const input = await projectInput();

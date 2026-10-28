@@ -17,6 +17,8 @@ import { overviewData } from './services/dashboard.service.js';
 import { clientRoutes } from './routes/client.routes.js';
 import { projectRoutes } from './routes/project.routes.js';
 import { lookupRoutes, categoryRoutes } from './routes/lookup.routes.js';
+import { employeeRoutes } from './routes/employee.routes.js';
+import { taskRoutes } from './routes/task.routes.js';
 
 export async function createApp(config: AppConfig, db: PrismaClient) {
   const app = express();
@@ -89,6 +91,8 @@ export async function createApp(config: AppConfig, db: PrismaClient) {
   app.use('/api/projects', requireAuth(auth), projectRoutes(db));
   app.use('/api/lookups', requireAuth(auth), lookupRoutes(db));
   app.use('/api/project-categories', requireAuth(auth), categoryRoutes(db));
+  app.use('/api/employees', requireAuth(auth), employeeRoutes(db));
+  app.use('/api/tasks', requireAuth(auth), taskRoutes(db));
   app.get('/api/dashboard', requireAuth(auth), requirePermission('overview:read'), (_req, res) => {
     res.json({ data: overviewData() });
   });

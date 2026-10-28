@@ -4,7 +4,9 @@ import { conflict, notFound } from './core.service.js';
 import { AppError } from '../utils/errors.js';
 export const isAdmin = (user: PublicUser) => user.role.key === 'super_admin';
 export function projectScope(user: PublicUser): Prisma.ProjectWhereInput {
-  return isAdmin(user) ? {} : { managerId: user.id };
+  return isAdmin(user)
+    ? {}
+    : { OR: [{ managerId: user.id }, { members: { some: { userId: user.id } } }] };
 }
 export const projectInclude = {
   client: {
@@ -92,6 +94,41 @@ export async function validateProject(
     !(await tx.department.findUnique({ where: { id: input.departmentId } }))
   )
     conflict('Select an existing department.');
-  if (input.status === 'COMPLETED')
-    conflict('Complete at least one project task before completing this project.');
+  if (input.status === 'COMPLETED') {
+    const total = before
+      ? await tx.task.count({ where: { projectId: before.id, archivedAt: null } })
+      : 0;
+    const unfinished = before
+      ? await tx.task.count({
+          where: { projectId: before.id, archivedAt: null, status: { not: 'COMPLETED' } },
+        })
+      : 0;
+    if (!total || unfinished)
+      conflict(
+        'Complete at least one project task and all remaining current tasks before completing this project.',
+      );
+  }
+}
+
+export async function projectProgress(tx: Prisma.TransactionClient, ids: string[]) {
+  const counts = await tx.task.groupBy({
+    by: ['projectId', 'status'],
+    where: { projectId: { in: ids }, archivedAt: null },
+    _count: true,
+  });
+  return new Map(
+    ids.map((id) => {
+      const rows = counts.filter((row) => row.projectId === id);
+      const totalTasks = rows.reduce((sum, row) => sum + row._count, 0);
+      const completedTasks = rows.find((row) => row.status === 'COMPLETED')?._count ?? 0;
+      return [
+        id,
+        {
+          totalTasks,
+          completedTasks,
+          progress: totalTasks ? Math.round((completedTasks / totalTasks) * 100) : 0,
+        },
+      ];
+    }),
+  );
 }
