@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { mkdirSync } from 'node:fs';
 
 test('sign-in, refresh persistence, workspace navigation, logos, and logout', async ({
@@ -79,7 +79,8 @@ test('sign-in, refresh persistence, workspace navigation, logos, and logout', as
       .click();
   }
   await expect(page).toHaveURL('/projects');
-  await expect(page.getByText('This module is planned and is not available yet.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Projects', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add project', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Open account menu' }).click();
   await page.getByRole('menuitem', { name: 'My profile' }).click();
   await expect(page.getByRole('heading', { name: 'My profile', exact: true })).toBeVisible();

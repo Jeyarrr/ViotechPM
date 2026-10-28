@@ -22,6 +22,12 @@ const FutureModulePage = lazy(() =>
 );
 const ProfilePage = lazy(() => import('@/pages/profile').then((m) => ({ default: m.ProfilePage })));
 const ClientsPage = lazy(() => import('@/pages/clients').then((m) => ({ default: m.ClientsPage })));
+const ProjectsPage = lazy(() =>
+  import('@/pages/projects').then((m) => ({ default: m.ProjectsPage })),
+);
+const ProjectDetailsPage = lazy(() =>
+  import('@/pages/projects').then((m) => ({ default: m.ProjectDetailsPage })),
+);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -36,8 +42,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                   <Route index element={<OverviewPage />} />
                   <Route path="profile" element={<ProfilePage />} />
                   <Route path="clients" element={<ClientsPage />} />
+                  <Route path="projects" element={<ProjectsPage />} />
+                  <Route path="projects/:id" element={<ProjectDetailsPage />} />
                   {allNavigation
-                    .filter((item) => !['/', '/profile', '/clients'].includes(item.path))
+                    .filter(
+                      (item) => !['/', '/profile', '/clients', '/projects'].includes(item.path),
+                    )
                     .map((item) => (
                       <Route key={item.path} path={item.path} element={<FutureModulePage />} />
                     ))}

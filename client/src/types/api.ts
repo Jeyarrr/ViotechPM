@@ -1,6 +1,7 @@
 export type Permission =
   | 'overview:read'
   | 'projects:read'
+  | 'projects:write'
   | 'tasks:read'
   | 'milestones:read'
   | 'clients:read'

@@ -15,6 +15,7 @@ const env = {
   NODE_ENV: 'test',
   PORT: '4001',
   CLIENT_ORIGIN: 'http://localhost:5174',
+  TRUST_PROXY: '1',
 };
 const mode = process.argv[2];
 const tsx = require.resolve('tsx/cli');
@@ -44,7 +45,7 @@ const child = spawn(
     : [resolve('node_modules/vite/bin/vite.js'), '--host', '127.0.0.1', '--port', '5174'],
   {
     cwd: resolve(mode === 'api' ? 'server' : 'client'),
-    env: { ...env, VITE_API_URL: 'http://localhost:4001' },
+    env: { ...env, VITE_API_URL: '', VITE_PROXY_TARGET: 'http://localhost:4001' },
     windowsHide: true,
     stdio: 'inherit',
   },

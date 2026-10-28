@@ -21,3 +21,39 @@ export interface ClientRecord {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface Lookup {
+  id: string;
+  name: string;
+  code?: string;
+  key?: string;
+  active?: boolean;
+}
+export interface ProjectRecord {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  clientId: string;
+  managerId: string;
+  categoryId: string;
+  departmentId: string | null;
+  startDate: string;
+  targetDate: string;
+  actualCompletionDate: string | null;
+  budget: string | null;
+  priority: string;
+  status: string;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  progress: number;
+  totalTasks: number;
+  completedTasks: number;
+  client: Lookup & { contactPerson: string | null; email: string | null; phone: string | null };
+  manager: Lookup & { email: string };
+  category: Lookup;
+  department: Lookup | null;
+  canManage?: boolean;
+  activity?: { id: string; action: string; timestamp: string; actor: { name: string } | null }[];
+}

@@ -23,7 +23,9 @@ Completed and verified on 2026-10-28.
 
 ## Checkpoint 2.2 — Project management
 
-Next: implement the additive project/category schema, scoped project CRUD/details, client relationships, date/budget/status validation, and tests. Checkpoint 2.1 is stable.
+Completed and verified on 2026-10-29. Additive migration `20261028000100_projects` applied; project/category schema, scoped CRUD/details, client relationships, date/budget/status validation, configurable categories, and transactional audit writes implemented. Verification: 33 backend tests; lint, typecheck, formatting, and production build passed. All 12 browser cases passed across the full run and two desktop reruns. The desktop cases exceeded the previous 30-second total timeout under load; both passed after increasing the timeout to 60 seconds. Preservation comparison passed for existing users, credentials, environment, login, logo, and palette.
+
+Task progress is currently correctly zero because task storage is introduced in checkpoint 2.3. That checkpoint must replace the interim zero/empty task and team payloads with actual aggregates and membership records before Phase 2 completion.
 
 ## Checkpoint 2.3 — Team and task management
 

@@ -25,6 +25,7 @@ export const roleDefinitions = [
 export type Permission =
   | 'overview:read'
   | 'projects:read'
+  | 'projects:write'
   | 'tasks:read'
   | 'milestones:read'
   | 'clients:read'
@@ -45,11 +46,11 @@ const management: Permission[] = [
   'audit:read',
 ];
 const permissions: Record<string, Permission[]> = {
-  super_admin: [...base, ...management, 'clients:write', 'system:manage'],
-  project_manager: [...base, ...management],
+  super_admin: [...base, ...management, 'clients:write', 'projects:write', 'system:manage'],
+  project_manager: [...base, ...management, 'projects:write'],
   developer: base,
   it_support: base,
-  employee: ['overview:read', 'tasks:read'],
+  employee: ['overview:read', 'tasks:read', 'projects:read'],
 };
 export function permissionsFor(role: string): Permission[] {
   return permissions[role] ?? [];

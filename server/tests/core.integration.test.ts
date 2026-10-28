@@ -66,6 +66,25 @@ async function addClient(overrides: object = {}) {
   });
 }
 
+async function projectInput(overrides: object = {}) {
+  const client = await addClient();
+  expect(client.status).toBe(201);
+  const category = await db.projectCategory.findFirstOrThrow({ where: { active: true } });
+  return {
+    code: `PRJ-${randomBytes(5).toString('hex')}`,
+    name: `Core project ${runId}`,
+    clientId: client.body.data.id as string,
+    categoryId: category.id,
+    managerId: users.project_manager!,
+    startDate: '2026-10-01',
+    targetDate: '2026-12-31',
+    budget: '12345.67',
+    priority: 'HIGH',
+    status: 'PLANNING',
+    ...overrides,
+  };
+}
+
 beforeAll(async () => {
   const require = createRequire(import.meta.url);
   try {
@@ -112,6 +131,8 @@ afterEach(async () => {
 });
 afterAll(async () => {
   const ids = [adminId, ...Object.values(users)].filter(Boolean);
+  await db.project.deleteMany({ where: { createdById: { in: ids } } });
+  await db.projectCategory.deleteMany({ where: { name: { contains: runId } } });
   await db.client.deleteMany({ where: { createdById: { in: ids } } });
   await db.auditLog.deleteMany({ where: { actorId: { in: ids } } });
   await db.user.deleteMany({ where: { id: { in: ids } } });
@@ -217,5 +238,151 @@ describe('Client management on PostgreSQL', () => {
         ).status,
       ).toBe(403);
     }
+  });
+});
+
+describe('Project management on PostgreSQL', () => {
+  it('persists decimal budgets, relationships, edits, and status audits', async () => {
+    const input = await projectInput();
+    const created = await write(admin, 'post', '/api/projects', input);
+    expect(created.status).toBe(201);
+    const id = created.body.data.id as string;
+    expect(created.body.data.budget).toBe('12345.67');
+    expect(created.body.data.client.id).toBe(input.clientId);
+    const changed = await write(admin, 'patch', `/api/projects/${id}`, {
+      name: 'Updated project',
+      budget: '999.99',
+      status: 'ACTIVE',
+    });
+    expect(changed.status).toBe(200);
+    expect((await db.project.findUniqueOrThrow({ where: { id } })).budget?.toFixed(2)).toBe(
+      '999.99',
+    );
+    const detail = await admin.get(`/api/projects/${id}`).expect(200);
+    expect(detail.body.data.progress).toBe(0);
+    expect(detail.body.data.manager.id).toBe(users.project_manager);
+    expect(detail.body.data.activity.map((row: { action: string }) => row.action)).toContain(
+      'project.status_changed',
+    );
+  });
+  it('rejects invalid budgets, dates, manager roles, missing relations, and premature completion', async () => {
+    const input = await projectInput();
+    expect((await write(admin, 'post', '/api/projects', { ...input, budget: '-1' })).status).toBe(
+      422,
+    );
+    expect(
+      (await write(admin, 'post', '/api/projects', { ...input, budget: '1.001' })).status,
+    ).toBe(422);
+    expect(
+      (await write(admin, 'post', '/api/projects', { ...input, targetDate: '2026-09-01' })).status,
+    ).toBe(422);
+    expect(
+      (await write(admin, 'post', '/api/projects', { ...input, startDate: '2026-02-30' })).status,
+    ).toBe(422);
+    expect(
+      (await write(admin, 'post', '/api/projects', { ...input, managerId: users.employee })).status,
+    ).toBe(409);
+    expect(
+      (await write(admin, 'post', '/api/projects', { ...input, status: 'COMPLETED' })).status,
+    ).toBe(409);
+    const created = await write(admin, 'post', '/api/projects', input);
+    expect(created.status).toBe(201);
+    expect((await write(admin, 'post', '/api/projects', input)).status).toBe(409);
+    expect(
+      (
+        await write(admin, 'patch', `/api/projects/${created.body.data.id}`, {
+          startDate: '2027-01-01',
+        })
+      ).status,
+    ).toBe(422);
+    expect(
+      (
+        await write(admin, 'patch', `/api/projects/${created.body.data.id}`, {
+          actualCompletionDate: '2026-10-28',
+        })
+      ).status,
+    ).toBe(422);
+  });
+  it('restricts project URLs and mutations to authorized projects', async () => {
+    const input = await projectInput();
+    const mine = await write(admin, 'post', '/api/projects', input);
+    const other = await write(admin, 'post', '/api/projects', {
+      ...input,
+      code: `OTHER-${runId}`,
+      managerId: adminId,
+    });
+    const manager = await login('project_manager');
+    await manager.get(`/api/projects/${mine.body.data.id}`).expect(200);
+    await manager.get(`/api/projects/${other.body.data.id}`).expect(404);
+    expect(
+      (await write(manager, 'patch', `/api/projects/${other.body.data.id}`, { name: 'Intrusion' }))
+        .status,
+    ).toBe(404);
+    expect(
+      (await write(manager, 'patch', `/api/projects/${mine.body.data.id}`, { managerId: adminId }))
+        .status,
+    ).toBe(403);
+    const own = await write(manager, 'post', '/api/projects', { ...input, code: `OWN-${runId}` });
+    expect(own.status).toBe(201);
+    for (const role of ['employee', 'developer', 'it_support']) {
+      const agent = await login(role);
+      await agent.get(`/api/projects/${mine.body.data.id}`).expect(404);
+      expect((await agent.get('/api/projects')).body.data.total).toBe(0);
+      expect((await write(agent, 'post', '/api/projects', input)).status).toBe(403);
+    }
+    expect((await manager.get(`/api/projects?managerId=${adminId}`)).body.data.total).toBe(0);
+  });
+  it('filters and paginates projects and safely preserves archived client references', async () => {
+    const input = await projectInput();
+    const result = await write(admin, 'post', '/api/projects', input);
+    const id = result.body.data.id as string;
+    const list = await admin
+      .get(
+        `/api/projects?q=${input.code}&clientId=${input.clientId}&managerId=${input.managerId}&categoryId=${input.categoryId}&priority=HIGH&status=PLANNING&pageSize=1&sort=targetDate&direction=asc`,
+      )
+      .expect(200);
+    expect(list.body.data.total).toBe(1);
+    expect((await write(admin, 'delete', `/api/clients/${input.clientId}`)).status).toBe(200);
+    expect((await admin.get(`/api/projects/${id}`)).body.data.client.id).toBe(input.clientId);
+    expect(
+      (await write(admin, 'post', '/api/projects', { ...input, code: `ARCHCLIENT-${runId}` }))
+        .status,
+    ).toBe(409);
+    expect((await write(admin, 'delete', `/api/projects/${id}`)).status).toBe(200);
+    expect((await admin.get(`/api/projects?q=${input.code}`)).body.data.total).toBe(0);
+    expect((await admin.get(`/api/projects?q=${input.code}&archived=true`)).body.data.total).toBe(
+      1,
+    );
+    expect(
+      (await write(admin, 'patch', `/api/projects/${id}`, { name: 'Archived edit' })).status,
+    ).toBe(409);
+    expect((await write(admin, 'post', `/api/projects/${id}/restore`)).status).toBe(200);
+    expect((await db.project.findUniqueOrThrow({ where: { id } })).clientId).toBe(input.clientId);
+  });
+  it('configures categories without deleting associations or allowing unauthorized changes', async () => {
+    const created = await write(admin, 'post', '/api/project-categories', {
+      name: `Category ${runId}`,
+    });
+    expect(created.status).toBe(201);
+    const id = created.body.data.id as string;
+    const input = await projectInput({ categoryId: id });
+    const project = await write(admin, 'post', '/api/projects', input);
+    expect(project.status).toBe(201);
+    expect(
+      (await write(admin, 'patch', `/api/project-categories/${id}`, { active: false })).status,
+    ).toBe(200);
+    expect((await admin.get(`/api/projects/${project.body.data.id}`)).body.data.category.name).toBe(
+      `Category ${runId}`,
+    );
+    expect(
+      (await write(admin, 'post', '/api/projects', { ...input, code: `CAT-${runId}` })).status,
+    ).toBe(409);
+    const manager = await login('project_manager');
+    expect(
+      (await write(manager, 'post', '/api/project-categories', { name: 'Unauthorized category' }))
+        .status,
+    ).toBe(403);
+    await manager.get('/api/lookups/roles').expect(403);
+    await admin.get('/api/lookups/categories?pageSize=101').expect(422);
   });
 });

@@ -1,4 +1,65 @@
 /* Core modules extend the official login tokens without changing the palette. */
+.crud-page .page-heading > div {
+  min-width: 0;
+}
+.crud-page h1,
+.crud-dialog-heading h2 {
+  overflow-wrap: anywhere;
+}
+.project-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(240px, 1fr);
+  gap: var(--space-grid);
+}
+.detail-panel {
+  padding: var(--space-panel);
+}
+.project-description {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.8;
+  margin-block: 16px;
+}
+.project-progress-value {
+  display: block;
+  font-size: 36px;
+  margin: 24px 0 14px;
+}
+.project-progress {
+  width: 100%;
+  height: 8px;
+  accent-color: var(--primary);
+}
+.project-progress::-webkit-progress-bar {
+  background: var(--border);
+  border-radius: 8px;
+}
+.project-progress::-webkit-progress-value {
+  background: var(--primary);
+  border-radius: 8px;
+}
+.detail-subheading {
+  margin-top: 28px;
+}
+.back-link {
+  align-self: flex-start;
+}
+.detail-panel .data-list {
+  margin-inline: 0;
+}
+.detail-panel small {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 10px;
+  margin-top: 4px;
+}
+@media (max-width: 900px) {
+  .project-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .crud-page {
   display: flex;
   flex-direction: column;

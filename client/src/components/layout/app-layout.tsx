@@ -31,7 +31,11 @@ export function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
-  const current = allNavigation.find((item) => item.path === location.pathname);
+  const current = allNavigation.find(
+    (item) =>
+      item.path === location.pathname ||
+      (item.path !== '/' && location.pathname.startsWith(`${item.path}/`)),
+  );
   if (!user) return null;
   return (
     <div className={`app-shell ${collapsed ? 'is-collapsed' : ''}`}>
