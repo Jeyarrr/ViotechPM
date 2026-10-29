@@ -1,5 +1,6 @@
 import type { Prisma } from '../generated/prisma/client.js';
 import { AppError } from '../utils/errors.js';
+import { notifyAudit } from './notification.service.js';
 
 export function notFound(): never {
   throw new AppError(404, 'NOT_FOUND', 'This record is unavailable or you do not have access.');
@@ -42,7 +43,7 @@ export async function audit(
     projectId =
       (await tx.expense.findUnique({ where: { id: entityId }, select: { projectId: true } }))
         ?.projectId ?? null;
-  await tx.auditLog.create({
+  const event = await tx.auditLog.create({
     data: {
       projectId,
       actorId,
@@ -52,6 +53,7 @@ export async function audit(
       metadata: redactAuditMetadata(JSON.parse(JSON.stringify(changes))) as Prisma.InputJsonValue,
     },
   });
+  await notifyAudit(tx, event);
 }
 export function redactAuditMetadata(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(redactAuditMetadata);

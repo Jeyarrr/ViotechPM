@@ -1,3 +1,6 @@
+import { createServer } from 'node:http';
+import { createRealtime } from './services/realtime.service.js';
+import { notificationRoutes } from './routes/notification.routes.js';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -43,12 +46,21 @@ export async function createApp(config: AppConfig, db: PrismaClient) {
     pruneSessionInterval: 900,
   });
   const secure = config.NODE_ENV === 'production';
+  const allowedOrigins = [config.CLIENT_ORIGIN];
+  const clientUrl = new URL(config.CLIENT_ORIGIN);
+  if (
+    config.NODE_ENV === 'development' &&
+    ['localhost', '127.0.0.1'].includes(clientUrl.hostname)
+  ) {
+    clientUrl.hostname = clientUrl.hostname === 'localhost' ? '127.0.0.1' : 'localhost';
+    allowedOrigins.push(clientUrl.origin);
+  }
   app.disable('x-powered-by');
   if (config.TRUST_PROXY === '1') app.set('trust proxy', 1);
   app.use(helmet());
   app.use(
     cors({
-      origin: config.CLIENT_ORIGIN,
+      origin: allowedOrigins,
       credentials: true,
       allowedHeaders: ['Content-Type', 'X-CSRF-Token'],
     }),
@@ -80,19 +92,19 @@ export async function createApp(config: AppConfig, db: PrismaClient) {
         .json({ error: { code: 'DATABASE_UNAVAILABLE', message: 'Database is unavailable.' } });
     }
   });
-  app.use(
-    session({
-      name: cookieName,
-      secret: config.SESSION_SECRET,
-      store,
-      resave: false,
-      saveUninitialized: false,
-      rolling: false,
-      cookie: { httpOnly: true, secure, sameSite: 'lax', maxAge: 8 * 60 * 60 * 1000, path: '/' },
-    }),
-  );
-  app.use(protectMutations(config.CLIENT_ORIGIN));
+  const sessionMiddleware = session({
+    name: cookieName,
+    secret: config.SESSION_SECRET,
+    store,
+    resave: false,
+    saveUninitialized: false,
+    rolling: false,
+    cookie: { httpOnly: true, secure, sameSite: 'lax', maxAge: 8 * 60 * 60 * 1000, path: '/' },
+  });
+  app.use(sessionMiddleware);
+  app.use(protectMutations(allowedOrigins));
   app.use('/api/auth', authRoutes(auth, db, secure));
+  app.use('/api/notifications', requireAuth(auth), notificationRoutes(db));
   app.use('/api/clients', requireAuth(auth), clientRoutes(db));
   app.use('/api/projects', requireAuth(auth), projectRoutes(db));
   app.use('/api/lookups', requireAuth(auth), lookupRoutes(db));
@@ -129,9 +141,21 @@ export async function createApp(config: AppConfig, db: PrismaClient) {
       .json({ error: { code: 'NOT_FOUND', message: 'This endpoint does not exist.' } }),
   );
   app.use(errorHandler);
+  const server = createServer(app);
+  const realtime = createRealtime(
+    server,
+    sessionMiddleware,
+    allowedOrigins,
+    db,
+    auth,
+    config.DATABASE_URL,
+  );
   return {
     app,
+    server,
+    realtime,
     async close() {
+      await realtime.close();
       store.close();
       await pool.end();
     },

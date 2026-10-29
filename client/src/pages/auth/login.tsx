@@ -21,7 +21,12 @@ import { useAuth, useLogin } from '@/hooks/use-auth';
 import { LoadingScreen } from '@/components/shared/feedback';
 
 const loginSchema = z.object({
-  email: z.string().trim().email('Enter a valid email address.').max(254),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .max(254)
+    .pipe(z.union([z.literal('admin'), z.email()])),
   password: z.string().min(1, 'Enter your password.').max(128),
 });
 type LoginInput = z.infer<typeof loginSchema>;
@@ -126,10 +131,10 @@ export function LoginPage() {
           <p className="login-intro">Sign in to get a clear picture of your work.</p>
           <form onSubmit={submit} noValidate>
             <div className="form-field">
-              <label htmlFor="email">Email address</label>
+              <label htmlFor="email">Email or username</label>
               <Input
                 id="email"
-                type="email"
+                type="text"
                 autoComplete="username"
                 placeholder="you@viotech.com"
                 aria-invalid={!!errors.email}

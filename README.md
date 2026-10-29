@@ -1,5 +1,18 @@
 # ViotechPM
 
+## Local administrator login
+
+| Field      | Value                 |
+| ---------- | --------------------- |
+| Login page | http://localhost:5173 |
+| Username   | `admin`               |
+| Password   | `admin`               |
+| Role       | Super Administrator   |
+
+Use `admin` / `admin` in the login form for this local test workspace. The username is a development-only alias for the existing `admin@viotech.local` account.
+
+These credentials apply only to this configured local test database; do not use this password for production. Other installations use their own `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD`. Re-running the seed does not reset an existing account's password.
+
 ### Project Management System for Viotech I.T. Solutions
 
 ViotechPM is a full-stack, web-based Project Management System designed for Viotech I.T. Solutions. It brings project planning, client management, employee accounts, team assignments, and task tracking into a centralized workspace.

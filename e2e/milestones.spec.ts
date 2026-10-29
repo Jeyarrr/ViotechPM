@@ -10,7 +10,7 @@ test('milestone CRUD, linked task completion, progress, archive and restore', as
     errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/login');
-  await page.getByLabel('Email address').fill(process.env.BOOTSTRAP_ADMIN_EMAIL!);
+  await page.getByLabel('Email or username').fill(process.env.BOOTSTRAP_ADMIN_EMAIL!);
   await page.getByLabel('Password', { exact: true }).fill(process.env.BOOTSTRAP_ADMIN_PASSWORD!);
   await page.getByRole('button', { name: 'Sign in to workspace' }).click();
   await expect(page).toHaveURL('/');

@@ -14,7 +14,7 @@ test('request creation, revision, two-stage approval, rejection and cancellation
   const signIn = async (target: Page, email: string, secret: string) => {
     target.on('pageerror', (error) => errors.push(error.message));
     await target.goto('/login');
-    await target.getByLabel('Email address').fill(email);
+    await target.getByLabel('Email or username').fill(email);
     await target.getByLabel('Password', { exact: true }).fill(secret);
     await target.getByRole('button', { name: 'Sign in to workspace' }).click();
     await expect(target).toHaveURL('/');

@@ -57,7 +57,10 @@ body {
       transparent 85%
     ),
     radial-gradient(ellipse at 12% 100%, var(--canvas-red), transparent 54%);
-  background-attachment: fixed;
+  background-attachment: scroll;
+}
+body:has(.app-shell) {
+  background: var(--background);
 }
 button,
 input,
@@ -1738,23 +1741,19 @@ svg {
   }
 }
 
-/* Crimson workspace frame. The canvas stays outside the functional app surface. */
-.app-shell,
+/* Login and workspace surfaces fill the viewport without an outer frame. */
 .login-page {
-  width: calc(100% - var(--frame-gutter) * 2);
-  max-width: 1680px;
-  min-height: calc(100dvh - var(--frame-gutter) * 2);
-  margin: var(--frame-gutter) auto;
-  border: 1px solid var(--frame-border);
-  border-radius: var(--frame-radius);
+  width: 100%;
+  min-height: 100dvh;
+  margin: 0;
   background: var(--background);
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--primary) 10%, transparent),
-    0 0 48px color-mix(in srgb, var(--crimson) 18%, transparent),
-    0 26px 80px #0009;
 }
 .app-shell {
   --sidebar-width: 224px;
+  --frame-radius: 0px;
+  width: 100%;
+  min-height: 100dvh;
+  margin: 0;
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   position: relative;
@@ -1765,8 +1764,8 @@ svg {
 }
 .desktop-sidebar {
   position: sticky;
-  top: var(--frame-gutter);
-  height: calc(100dvh - var(--frame-gutter) * 2 - 2px);
+  top: 0;
+  height: 100dvh;
   align-self: start;
   z-index: 30;
 }
@@ -1779,11 +1778,12 @@ svg {
   border-right: 1px solid var(--border);
 }
 .desktop-sidebar .sidebar {
-  border-radius: calc(var(--frame-radius) - 1px) 0 0 calc(var(--frame-radius) - 1px);
+  border-radius: 0;
 }
 .brand-link {
   display: flex;
   align-items: center;
+  justify-content: center;
   padding: 12px 24px 18px;
   flex-shrink: 0;
 }
@@ -1814,7 +1814,7 @@ svg {
 }
 .app-main {
   min-width: 0;
-  min-height: calc(100dvh - var(--frame-gutter) * 2 - 2px);
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   border-radius: 0 var(--frame-radius) var(--frame-radius) 0;
@@ -1980,7 +1980,7 @@ svg {
   border-top: 1px solid var(--border);
 }
 
-/* The sign-in screen shares the same framed, crimson visual system. */
+/* The sign-in screen shares the workspace's crimson visual system. */
 .login-page {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2015,7 +2015,7 @@ svg {
   flex-direction: column;
   justify-content: center;
   min-width: 0;
-  min-height: calc(100dvh - var(--frame-gutter) * 2 - 2px);
+  min-height: 100dvh;
   padding: 48px 32px 72px;
   background: radial-gradient(ellipse at 100% 0%, var(--accent-soft), transparent 60%);
 }

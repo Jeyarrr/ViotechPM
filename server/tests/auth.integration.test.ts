@@ -228,7 +228,7 @@ describe('PostgreSQL-backed authentication', () => {
     const response = await request(runtime.app)
       .get('/api/health')
       .set('Origin', 'https://untrusted.invalid');
-    expect(response.headers['access-control-allow-origin']).toBe(config.CLIENT_ORIGIN);
+    expect(response.headers['access-control-allow-origin']).toBeUndefined();
     expect(response.headers['access-control-allow-origin']).not.toBe('*');
   });
   it('handles malformed JSON and unsupported content types', async () => {

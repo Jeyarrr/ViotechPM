@@ -1,7 +1,6 @@
 import { NavLink } from 'react-router';
-import { ArrowUpRight, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import { Brand } from '@/components/shared/brand';
-import { Button } from '@/components/ui/button';
 import { navigation } from '@/routes/navigation';
 import { cn } from '@/lib/utils';
 import type { User } from '@/types/api';
@@ -9,17 +8,11 @@ import type { User } from '@/types/api';
 export function Sidebar({
   user,
   collapsed,
-  onCollapse,
   onNavigate,
-  onLogout,
-  logoutPending,
 }: {
   user: User;
   collapsed: boolean;
-  onCollapse?: () => void;
   onNavigate?: () => void;
-  onLogout: () => void;
-  logoutPending: boolean;
 }) {
   return (
     <aside className={cn('sidebar', collapsed && 'sidebar-collapsed')} aria-label="Main navigation">
@@ -77,25 +70,6 @@ export function Sidebar({
             <span>Workspace connected</span>
             <ArrowUpRight size={13} />
           </div>
-        )}
-        <Button
-          variant="ghost"
-          className="sidebar-logout"
-          onClick={onLogout}
-          disabled={logoutPending}
-          title="Sign out"
-        >
-          <LogOut size={17} />
-          {!collapsed && <span>{logoutPending ? 'Signing out…' : 'Sign out'}</span>}
-        </Button>
-        {onCollapse && (
-          <button
-            className="collapse-button"
-            onClick={onCollapse}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-          </button>
         )}
       </div>
     </aside>

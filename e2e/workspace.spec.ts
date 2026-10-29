@@ -37,7 +37,7 @@ test('sign-in, refresh persistence, workspace navigation, logos, and logout', as
     path: `.local/screenshots/login-${testInfo.project.name}.png`,
     fullPage: true,
   });
-  await page.getByLabel('Email address').fill(email);
+  await page.getByLabel('Email or username').fill(email);
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Show password' }).click();
   await expect(page.getByLabel('Password', { exact: true })).toHaveAttribute('type', 'text');

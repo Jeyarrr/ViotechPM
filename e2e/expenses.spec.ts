@@ -25,7 +25,7 @@ test('approved expenses, budget controls and immutable reversals persist', async
     });
   };
   await page.goto('/login');
-  await page.getByLabel('Email address').fill(process.env.BOOTSTRAP_ADMIN_EMAIL!);
+  await page.getByLabel('Email or username').fill(process.env.BOOTSTRAP_ADMIN_EMAIL!);
   await page.getByLabel('Password', { exact: true }).fill(process.env.BOOTSTRAP_ADMIN_PASSWORD!);
   await page.getByRole('button', { name: 'Sign in to workspace' }).click();
   await expect(page).toHaveURL('/');

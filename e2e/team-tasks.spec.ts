@@ -10,7 +10,7 @@ test('employee administration, team assignment, task list and Kanban persist acr
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/login');
-  await page.getByLabel('Email address').fill(process.env.BOOTSTRAP_ADMIN_EMAIL!);
+  await page.getByLabel('Email or username').fill(process.env.BOOTSTRAP_ADMIN_EMAIL!);
   await page.getByLabel('Password', { exact: true }).fill(process.env.BOOTSTRAP_ADMIN_PASSWORD!);
   await page.getByRole('button', { name: 'Sign in to workspace' }).click();
   await expect(page).toHaveURL('/');
@@ -25,7 +25,7 @@ test('employee administration, team assignment, task list and Kanban persist acr
   await page.getByRole('button', { name: 'Add employee' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Full name').fill(`Employee ${code}`);
-  await dialog.getByLabel('Email address').fill(`${code.toLowerCase()}@test.viotech.local`);
+  await dialog.getByLabel('Email or username').fill(`${code.toLowerCase()}@test.viotech.local`);
   await dialog
     .getByLabel('Role', { exact: false })
     .selectOption(roles.find((r) => r.key === 'developer')!.id);

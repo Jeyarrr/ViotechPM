@@ -38,6 +38,7 @@ model Department {
 }
 
 model User {
+  notifications           Notification[]
   recordedExpenses        Expense[]            @relation("ExpenseRecorder")
   requestedTransactions   ProjectTransaction[] @relation("TransactionRequester")
   assignedApprovalSteps   ApprovalStep[]       @relation("StepApprover")
@@ -129,6 +130,7 @@ model ProjectCategory {
 }
 
 model Project {
+  notifications        Notification[]
   auditLogs            AuditLog[]
   expenses             Expense[]
   transactions         ProjectTransaction[]
@@ -195,6 +197,7 @@ model ProjectMember {
 }
 
 model Task {
+  notifications Notification[]
   milestoneId String?    @map("milestone_id") @db.Uuid
   milestone   Milestone? @relation(fields: [milestoneId, projectId], references: [id, projectId], onDelete: Restrict)
   id          String     @id @default(uuid()) @db.Uuid
@@ -300,6 +303,7 @@ model TransactionType {
 }
 
 model ProjectTransaction {
+  notifications   Notification[]
   expense         Expense?
   id              String             @id @default(uuid()) @db.Uuid
   reference       String             @unique @db.VarChar(50)
@@ -458,4 +462,31 @@ model Session {
 
   @@index([expire], map: "IDX_session_expire")
   @@map("sessions")
+}
+
+model Notification {
+  id            String   @id @default(uuid()) @db.Uuid
+  recipientId   String   @map("recipient_id") @db.Uuid
+  recipient     User     @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  projectId     String?  @map("project_id") @db.Uuid
+  project       Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId        String?  @map("task_id") @db.Uuid
+  task          Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  transactionId String?  @map("transaction_id") @db.Uuid
+  transaction   ProjectTransaction? @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  type          String   @db.VarChar(100)
+  title         String   @db.VarChar(180)
+  message       String   @db.VarChar(500)
+  entityType    String   @map("entity_type") @db.VarChar(80)
+  entityId      String   @map("entity_id") @db.Uuid
+  dedupeKey     String   @map("dedupe_key") @db.VarChar(250)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  readAt        DateTime? @map("read_at") @db.Timestamptz(3)
+
+  @@unique([recipientId, dedupeKey])
+  @@index([recipientId, readAt, createdAt])
+  @@index([projectId])
+  @@index([taskId])
+  @@index([transactionId])
+  @@map("notifications")
 }

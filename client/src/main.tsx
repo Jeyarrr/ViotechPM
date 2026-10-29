@@ -12,6 +12,8 @@ import { NotFoundPage } from '@/pages/not-found';
 import { allNavigation } from '@/routes/navigation';
 import '@/styles/globals.css';
 import '@/styles/crud.css';
+import '@/styles/collaboration.css';
+import { NotificationsPage } from '@/components/notifications';
 
 const LoginPage = lazy(() => import('@/pages/auth/login').then((m) => ({ default: m.LoginPage })));
 const OverviewPage = lazy(() =>
@@ -36,6 +38,9 @@ const MilestoneDetailsPage = lazy(() =>
   import('@/pages/milestones').then((m) => ({ default: m.MilestoneDetailsPage })),
 );
 const TasksPage = lazy(() => import('@/pages/tasks').then((m) => ({ default: m.TasksPage })));
+const TaskDetailsPage = lazy(() =>
+  import('@/pages/task-details').then((m) => ({ default: m.TaskDetailsPage })),
+);
 const TransactionsPage = lazy(() =>
   import('@/pages/transactions').then((m) => ({ default: m.TransactionsPage })),
 );
@@ -65,11 +70,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                 <Route element={<AppLayout />}>
                   <Route index element={<OverviewPage />} />
                   <Route path="profile" element={<ProfilePage />} />
+                  <Route path="notifications" element={<NotificationsPage />} />
                   <Route path="clients" element={<ClientsPage />} />
                   <Route path="projects" element={<ProjectsPage />} />
                   <Route path="projects/:id" element={<ProjectDetailsPage />} />
                   <Route path="team" element={<TeamPage />} />
                   <Route path="tasks" element={<TasksPage />} />
+                  <Route path="tasks/:id" element={<TaskDetailsPage />} />
                   <Route path="milestones" element={<MilestonesPage />} />
                   <Route path="milestones/:id" element={<MilestoneDetailsPage />} />
                   <Route path="transactions" element={<TransactionsPage />} />

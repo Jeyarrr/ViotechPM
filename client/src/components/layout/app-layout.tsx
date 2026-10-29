@@ -24,9 +24,12 @@ import { NavigationSheet } from '@/components/ui/sheet';
 import { useAuth, useLogout } from '@/hooks/use-auth';
 import { allNavigation } from '@/routes/navigation';
 import { initials } from '@/lib/utils';
+import { NotificationBell } from '@/components/notifications';
+import { useRealtime } from '@/hooks/use-realtime';
 
 export function AppLayout() {
   const { data: user } = useAuth();
+  useRealtime(user?.id);
   const logout = useLogout();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -43,22 +46,10 @@ export function AppLayout() {
         Skip to content
       </a>
       <div className="desktop-sidebar">
-        <Sidebar
-          user={user}
-          collapsed={collapsed}
-          onCollapse={() => setCollapsed(!collapsed)}
-          onLogout={() => logout.mutate()}
-          logoutPending={logout.isPending}
-        />
+        <Sidebar user={user} collapsed={collapsed} />
       </div>
       <NavigationSheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <Sidebar
-          user={user}
-          collapsed={false}
-          onNavigate={() => setMobileOpen(false)}
-          onLogout={() => logout.mutate()}
-          logoutPending={logout.isPending}
-        />
+        <Sidebar user={user} collapsed={false} onNavigate={() => setMobileOpen(false)} />
       </NavigationSheet>
       <div className="app-main">
         <header className="topbar">
@@ -87,6 +78,7 @@ export function AppLayout() {
             <span className="breadcrumb-current">{current?.title ?? 'Page not found'}</span>
           </div>
           <div className="topbar-right">
+            <NotificationBell />
             <span className="secure-workspace">
               <ShieldCheck size={14} />
               Secure workspace
