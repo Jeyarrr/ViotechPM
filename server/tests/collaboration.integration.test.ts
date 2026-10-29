@@ -139,6 +139,9 @@ afterAll(async () => {
   await db.auditLog.deleteMany({
     where: { OR: [{ projectId }, { actorId: { in: [userId, employeeId] } }] },
   });
+  await db.taskCommentMention.deleteMany({ where: { comment: { task: { projectId } } } });
+  await db.taskComment.deleteMany({ where: { task: { projectId } } });
+  await db.task.deleteMany({ where: { projectId } });
   await db.projectMember.deleteMany({ where: { projectId } });
   await db.project.deleteMany({ where: { id: projectId } });
   await db.client.deleteMany({ where: { id: clientId } });
@@ -202,6 +205,95 @@ it('deduplicates delivery keys and rolls back notifications with their transacti
     }),
   ).rejects.toThrow('Rollback');
   expect(await db.notification.count({ where: { recipientId: employeeId } })).toBe(before);
+});
+
+it('supports authorized discussion, safe mentions, edit policy and soft deletion', async () => {
+  const task = await db.task.create({
+    data: {
+      code: 'T-' + suffix.slice(0, 8).toUpperCase(),
+      title: 'Discuss this task',
+      projectId,
+      assigneeId: employeeId,
+      createdById: userId,
+      startDate: new Date('2026-10-01'),
+      dueDate: new Date('2026-12-01'),
+    },
+  });
+  const socket = await connect(await socketSession());
+  const event = new Promise<void>((resolve) => socket.once('workspace:changed', () => resolve()));
+  const created = await write(employee, 'post', '/api/tasks/' + task.id + '/comments', {
+    content: '<script>alert(1)</script> Task update',
+    mentionIds: [userId, userId],
+  });
+  expect(created.status).toBe(201);
+  await event;
+  const commentId = created.body.data.id;
+  expect(await db.taskCommentMention.count({ where: { commentId } })).toBe(1);
+  expect(
+    await db.notification.count({
+      where: { recipientId: userId, dedupeKey: 'comment:' + commentId },
+    }),
+  ).toBe(1);
+  const comments = await employee.get('/api/tasks/' + task.id + '/comments');
+  expect(comments.body.data.items[0].content).toContain('<script>');
+  expect(
+    (
+      await write(admin, 'patch', '/api/tasks/' + task.id + '/comments/' + commentId, {
+        content: 'Unauthorized edit',
+      })
+    ).status,
+  ).toBe(403);
+  expect(
+    (
+      await write(employee, 'patch', '/api/tasks/' + task.id + '/comments/' + commentId, {
+        content: 'Updated comment',
+      })
+    ).status,
+  ).toBe(200);
+  expect(
+    (
+      await write(employee, 'post', '/api/tasks/' + task.id + '/comments', {
+        content: 'Invalid mention',
+        mentionIds: [randomUUID()],
+      })
+    ).status,
+  ).toBe(422);
+  await db.taskComment.update({
+    where: { id: commentId },
+    data: { createdAt: new Date(Date.now() - 2 * 86400000) },
+  });
+  expect(
+    (
+      await write(employee, 'patch', '/api/tasks/' + task.id + '/comments/' + commentId, {
+        content: 'Too late',
+      })
+    ).status,
+  ).toBe(403);
+  expect(
+    (await write(admin, 'delete', '/api/tasks/' + task.id + '/comments/' + commentId)).status,
+  ).toBe(200);
+  expect(
+    (await employee.get('/api/tasks/' + task.id + '/comments')).body.data.items[0].content,
+  ).toBe('');
+  expect((await db.taskComment.findUniqueOrThrow({ where: { id: commentId } })).content).toBe(
+    'Updated comment',
+  );
+  await db.task.update({ where: { id: task.id }, data: { assigneeId: null } });
+  expect((await employee.get('/api/tasks/' + task.id + '/comments')).status).toBe(404);
+  expect(
+    (await write(employee, 'post', '/api/tasks/' + task.id + '/comments', { content: 'Denied' }))
+      .status,
+  ).toBe(404);
+});
+it('presents scoped, paginated project activity without private audit metadata', async () => {
+  const all = await admin.get('/api/projects/' + projectId + '/activities?pageSize=1');
+  expect(all.status).toBe(200);
+  expect(all.body.data.items).toHaveLength(1);
+  expect(all.body.data.items[0]).not.toHaveProperty('metadata');
+  const comments = await employee.get('/api/projects/' + projectId + '/activities?type=comment');
+  expect(comments.body.data.total).toBe(0); // Task is no longer assigned to this employee.
+  const adminComments = await admin.get('/api/projects/' + projectId + '/activities?type=comment');
+  expect(adminComments.body.data.total).toBeGreaterThan(0);
 });
 it('removes notification access and room subscriptions after membership removal', async () => {
   const socket = await connect(await socketSession(`employee-${email}`));

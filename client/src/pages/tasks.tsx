@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { TaskDiscussion } from '@/components/collaboration';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router';
 import { Plus, LayoutGrid, List } from 'lucide-react';
@@ -384,6 +385,11 @@ export function TasksPage() {
               </div>
             ))}
           </dl>
+          <TaskDiscussion
+            taskId={detail.id}
+            readOnly={!!detail.archivedAt || !!detail.project.archivedAt}
+          />
+          <Link to={`/tasks/${detail.id}`}>Open full task discussion</Link>
         </RecordDialog>
       )}
       {confirm && (

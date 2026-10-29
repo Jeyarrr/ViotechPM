@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { createRealtime } from './services/realtime.service.js';
 import { notificationRoutes } from './routes/notification.routes.js';
+import { collaborationRoutes } from './routes/collaboration.routes.js';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -105,6 +106,7 @@ export async function createApp(config: AppConfig, db: PrismaClient) {
   app.use(protectMutations(allowedOrigins));
   app.use('/api/auth', authRoutes(auth, db, secure));
   app.use('/api/notifications', requireAuth(auth), notificationRoutes(db));
+  app.use('/api', requireAuth(auth), collaborationRoutes(db));
   app.use('/api/clients', requireAuth(auth), clientRoutes(db));
   app.use('/api/projects', requireAuth(auth), projectRoutes(db));
   app.use('/api/lookups', requireAuth(auth), lookupRoutes(db));

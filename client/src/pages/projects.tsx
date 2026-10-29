@@ -1,3 +1,4 @@
+import { ProjectActivity } from '@/components/collaboration';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router';
@@ -410,20 +411,7 @@ export function ProjectDetailsPage() {
       </Card>
       <ProjectMilestones project={project} />
       <ProjectFinance project={project} />
-      <Card className="detail-panel">
-        <h2 className="card-title">Recent activity</h2>
-        <ul className="data-list">
-          {project.activity?.map((item) => (
-            <li key={item.id}>
-              <span>
-                {item.action.replaceAll('.', ' ').replaceAll('_', ' ')}
-                <small>{item.actor?.name ?? 'System'}</small>
-              </span>
-              <time>{new Date(item.timestamp).toLocaleString('en-PH')}</time>
-            </li>
-          ))}
-        </ul>
-      </Card>
+      <ProjectActivity projectId={project.id} />
       {editing && (
         <ProjectEditor
           project={project}

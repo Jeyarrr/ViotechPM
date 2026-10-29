@@ -4,6 +4,7 @@ import { api } from '@/services/api';
 import type { TaskRecord } from '@/types/core';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/crud';
+import { TaskDiscussion } from '@/components/collaboration';
 
 export function TaskDetailsPage() {
   const { id } = useParams();
@@ -40,6 +41,7 @@ export function TaskDetailsPage() {
           ))}
         </dl>
       </Card>
+      <TaskDiscussion taskId={task.id} readOnly={!!task.archivedAt || !!task.project.archivedAt} />
     </section>
   );
 }

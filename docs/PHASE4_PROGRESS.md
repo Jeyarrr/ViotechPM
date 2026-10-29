@@ -2,7 +2,7 @@
 
 ## Current checkpoint
 
-Checkpoint 4.1 implemented and verified; checkpoint 4.2 next. Phase 4 is not complete.
+Checkpoints 4.1 and 4.2 implemented and verified; checkpoint 4.3 next. Phase 4 is not complete.
 
 ## Preserved starting state
 
@@ -41,3 +41,12 @@ Use isolated `viotechpm_test` for tests. Apply additive migrations only. Record 
 - Development Vite occasionally reports ECONNABORTED during page reload/socket teardown; browser regressions pass without console errors. No production deployment.
 - WebSocket-capable persistent Node hosting and direct PostgreSQL LISTEN connectivity are required. API records remain authoritative if realtime delivery is interrupted.
 - Reference: https://socket.io/how-to/use-with-express-session
+
+## Checkpoint 4.2 verification (2026-10-30)
+
+- TaskComment and TaskCommentMention added by 20261030000100_task_comments; both databases migrated without resets.
+- GET/POST /api/tasks/:id/comments; PATCH/DELETE /:commentId; GET /mention-options. Existing task scope is mandatory. Authors edit/delete within 24 hours; project managers/admins may moderate deletes. Deleted content stays in the database but is hidden from API responses. Mentions are explicit eligible user IDs, fixed at creation and deduplicated.
+- Project activity uses existing AuditLog records with safe presentation, scoped task/transaction links, actor/type/Manila-date filters and server pagination; GET /api/projects/:id/activities. No metadata or financial details in public project timeline payloads.
+- Task detail page and task modal have discussions. Project Details has the activity timeline. Socket invalidation refreshes authorized discussion viewers after commit.
+- 31 focused backend tests passed (core CRUD plus eight collaboration/security cases); four browser cases passed across all viewports, including two-viewer realtime updates, edits, refresh persistence and timeline filtering. Types/lint/format passed.
+- Checkpoint 4.1 commit: 40a8c75; push succeeded and GitHub CI run 40910081233 passed.

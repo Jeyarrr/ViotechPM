@@ -84,3 +84,35 @@
   padding-top: 16px;
   color: var(--foreground);
 }
+.discussion form {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0;
+}
+.discussion textarea,
+.discussion select {
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--foreground);
+  background: var(--surface);
+}
+.discussion textarea:focus,
+.discussion select:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.discussion-comment {
+  padding: 18px 0;
+  border-top: 1px solid var(--border);
+}
+.discussion-comment time {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.comment-content {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
