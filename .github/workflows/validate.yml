@@ -38,7 +38,7 @@ jobs:
         run: npm run lint
       - name: Formatting
         run: npm run format:check
-      - name: Configuration and permission tests
-        run: npm run test -w server -- tests/config.test.ts
+      - name: Configuration, permission and export safety tests
+        run: npm run test -w server -- tests/config.test.ts tests/report.test.ts
       - name: Frontend and backend builds
         run: npm run build

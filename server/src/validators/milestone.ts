@@ -28,9 +28,15 @@ export const milestoneListSchema = listSchema
     status: milestoneStatusSchema.optional(),
     priority: prioritySchema.optional(),
     overdue: z.enum(['true', 'false']).optional(),
+    dateFrom: dateSchema.optional(),
+    dateTo: dateSchema.optional(),
     sort: z
       .enum(['title', 'dueDate', 'startDate', 'displayOrder', 'createdAt', 'updatedAt'])
       .default('displayOrder'),
     direction: z.enum(['asc', 'desc']).default('asc'),
   })
-  .strict();
+  .strict()
+  .refine((q) => !q.dateFrom || !q.dateTo || q.dateFrom <= q.dateTo, {
+    message: 'End date must be on or after the start date.',
+    path: ['dateTo'],
+  });

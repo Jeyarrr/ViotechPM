@@ -23,6 +23,7 @@ import { api } from '@/services/api';
 import { currency } from '@/lib/utils';
 import type { OverviewData } from '@/types/api';
 import { taskLabel } from '@/lib/tasks';
+import { OperationsKpis, OperationsOverview } from '@/components/dashboard/operations-overview';
 
 const BudgetPlot = lazy(() => import('@/components/dashboard/budget-plot'));
 
@@ -199,6 +200,7 @@ export function OverviewPage() {
           </Card>
         ))}
       </div>
+      <OperationsKpis data={data.operations} />
       <div className="dashboard-workspace-grid">
         <Card className="activity-card">
           <CardHeader>
@@ -251,9 +253,13 @@ export function OverviewPage() {
             <div>
               <span>
                 <i className="legend-muted" />
-                Expense tracking
+                Managed project expenses
               </span>
-              <strong className="expense-unavailable">Not available yet</strong>
+              <strong>
+                {data.operations.financial
+                  ? currency(data.operations.financial.totals.totalExpenses, data.currency)
+                  : 'Restricted'}
+              </strong>
             </div>
             {!data.budgetSeries.length && (
               <span className="no-data-label">No recorded budgets</span>
@@ -429,6 +435,7 @@ export function OverviewPage() {
           )}
         </Card>
       </div>
+      <OperationsOverview data={data.operations} />
       <div className="dashboard-note">
         <span>
           <span className="status-dot" />

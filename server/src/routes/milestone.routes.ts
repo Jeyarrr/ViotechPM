@@ -37,11 +37,14 @@ export function milestoneWhere(
         responsibleId: q.responsibleId,
         status: q.status,
         priority: q.priority,
+        dueDate: { gte: q.dateFrom, lte: q.dateTo },
         OR: [
           { title: { contains: q.q, mode: 'insensitive' } },
           { description: { contains: q.q, mode: 'insensitive' } },
         ],
-        ...(q.overdue === 'true' ? { dueDate: { lt: day }, status: { not: 'COMPLETED' } } : {}),
+        ...(q.overdue === 'true'
+          ? { dueDate: { gte: q.dateFrom, lte: q.dateTo, lt: day }, status: { not: 'COMPLETED' } }
+          : {}),
       },
       ...(q.status ? [{ status: q.status }] : []),
       ...(q.overdue === 'false'

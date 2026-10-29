@@ -4,7 +4,7 @@
 
 ViotechPM is a full-stack, web-based Project Management System designed for Viotech I.T. Solutions. It brings project planning, client management, employee accounts, team assignments, and task tracking into a centralized workspace.
 
-Built with the PERN stack, the application combines a responsive crimson-and-black interface, secure session authentication, role-based access, and PostgreSQL-backed records. Phase 1 and Phase 2 are implemented and verified locally.
+Built with the PERN stack, the application combines a responsive crimson-and-black interface, secure session authentication, role-based access, and PostgreSQL-backed records. Phases 1, 2 and 3 are implemented and verified locally, including milestones, transaction approvals, controlled expense posting, audit history, and operational reporting.
 
 ## Completed features
 
@@ -16,12 +16,16 @@ Built with the PERN stack, the application combines a responsive crimson-and-bla
 - **Task management:** create, view, filter, edit, assign, update status, complete/reopen, and archive tasks. Includes My Tasks, a list view, and a Kanban board with persisted status selectors.
 - **Project progress:** calculated from current task records with completion and reopening safeguards.
 - **Live dashboard:** authorized project KPIs, status distribution, allocated budgets, recent activity, deadlines, personal tasks, and team workload.
-- **Audit logging:** authentication and core record changes are stored transactionally. Project details include recent activity; a standalone audit viewer is planned.
+- **Milestones:** scoped CRUD, responsible employees, task links, completion rules, archive/restore, progress and overdue indicators.
+- **Transactions and approvals:** employee requests, configurable request types, immutable submission snapshots, independent multi-stage reviews, return/revision/resubmission, cancellation and review history.
+- **Budget & expenses:** approved-request posting, duplicate and overrun prevention, exact decimal totals, immutable reversals, financial filters, breakdowns and live charts.
+- **Audit and reporting:** protected audit viewer with recorded changes, server filters and pagination; authorized milestone/transaction/expense reports and CSV with spreadsheet formula protection.
+- **Phase 3 dashboard:** assigned approvals, net expenses, upcoming/overdue milestones, recent requests, milestone completion and financial charts alongside the existing Phase 2 sections.
 - **Responsive interface:** desktop sidebar, mobile navigation drawer, reusable dialogs, tables, forms, feedback, and a read-only personal profile.
 
 ## Planned features
 
-Advanced milestones and dependencies, approval workflows, expense tracking, billing, realtime notifications, a standalone audit viewer, broader analytics, and production deployment remain future work. The current budget chart shows allocations; it does not report expenses.
+Task dependencies, billing/payment processing, realtime notifications, communication tools, PDF exports, and production deployment remain future work. Phase 3 does not process payments; approved financial requests affect spending only after controlled expense posting.
 
 ## Technology stack
 
@@ -44,7 +48,7 @@ Exact dependency versions are recorded in `package-lock.json`.
 | IT Support Technician | Read assigned projects and project tasks; update status of own assigned technical work                                                                                  |
 | Employee              | Read assigned projects and own assigned tasks; perform permitted task status updates                                                                                    |
 
-Permissions are enforced by the API, including requests made directly to record URLs. See the [complete permission matrix and completion rules](docs/PHASE2_API.md).
+Permissions are enforced by the API, including requests made directly to record URLs. See the [core permission matrix](docs/PHASE2_API.md) and [Phase 3 permission matrix and workflow rules](docs/PHASE3_API.md).
 
 ## Project structure
 
@@ -53,7 +57,7 @@ ViotechPM/
 ├── client/
 │   ├── public/assets/          Company logo assets
 │   ├── src/components/         UI, layout, dashboard, and reusable CRUD components
-│   ├── src/pages/              Login, overview, clients, projects, team, tasks, profile
+│   ├── src/pages/              Login, overview, core CRUD, operations, reports, audit, profile
 │   ├── src/hooks/              Session and core query/mutation hooks
 │   ├── src/routes/             Protected routes and navigation
 │   ├── src/services/           Typed API client
@@ -156,7 +160,7 @@ For an already configured workspace, `npm run dev` starts both applications. Aft
 
 Before first browser testing, install Chromium with `npx playwright install chromium`. Backend and browser suites use the same isolated test database; run them sequentially. Browser tests launch separate services on ports `4001` and `5174`.
 
-Phase 2 verification recorded **42 backend tests** and **16 browser cases** passing, together with lint, type checks, formatting, and production builds. See [verification details](docs/testing.md) and the [Phase 2 report](docs/PHASE2_REPORT.md) for coverage and limitations.
+Phase 2 verification recorded **42 backend tests** and **16 browser cases** passing, together with lint, type checks, formatting, and production builds. Phase 3 final verification passed **78 backend tests** and **32 browser cases** across four viewports. See [verification details](docs/testing.md) and the [Phase 3 report](docs/PHASE3_REPORT.md) for coverage and limitations.
 
 GitHub Actions validates installation, Prisma generation, types, lint, formatting, configuration/permission tests, and both builds. PostgreSQL integration and browser acceptance remain explicit local checks; the workflow does not require application secrets or deploy the app.
 
@@ -172,6 +176,8 @@ Actual login page captured during local acceptance verification, with blank cred
 
 **Phase 2:** PostgreSQL-backed clients, projects, employee administration, project memberships, tasks, real progress, scoped dashboard statistics, and core audit events.
 
+**Phase 3:** milestone management, transactions, independent approval stages, decimal-safe budgets/expenses and reversals, audit viewer, authorized CSV reports, and expanded live dashboard. See the [Phase 3 progress](docs/PHASE3_PROGRESS.md) and [API rules](docs/PHASE3_API.md) for checkpoint verification.
+
 The application is prepared for further development. Production deployment and the planned modules above are separate work.
 
 ## Documentation
@@ -183,6 +189,9 @@ The application is prepared for further development. Production deployment and t
 - [Phase 1 delivery report](docs/phase-1-report.md)
 - [Phase 2 progress](docs/PHASE2_PROGRESS.md)
 - [Phase 2 completion report](docs/PHASE2_REPORT.md)
+- [Phase 3 progress](docs/PHASE3_PROGRESS.md)
+- [Phase 3 APIs and permission matrix](docs/PHASE3_API.md)
+- [Phase 3 completion report](docs/PHASE3_REPORT.md)
 
 ## Developer
 

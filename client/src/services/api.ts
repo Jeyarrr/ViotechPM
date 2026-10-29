@@ -37,6 +37,34 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return (json as ApiEnvelope<T>).data;
 }
 export const api = {
+  async download(path: string, filename: string) {
+    let response: Response;
+    try {
+      response = await fetch(`${baseUrl}/api${path}`, { credentials: 'include' });
+    } catch {
+      throw new ApiError(
+        0,
+        'NETWORK_ERROR',
+        'Unable to download. Check your connection and try again.',
+      );
+    }
+    if (!response.ok) {
+      const json = await response.json().catch(() => null);
+      throw new ApiError(
+        response.status,
+        json?.error?.code ?? 'DOWNLOAD_FAILED',
+        json?.error?.message ?? 'Unable to download this report.',
+      );
+    }
+    const url = URL.createObjectURL(await response.blob()),
+      link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  },
   get: <T>(path: string) => request<T>(path),
   patch: <T>(path: string, body: unknown) => mutate<T>('PATCH', path, body),
   delete: <T>(path: string, body: unknown = {}) => mutate<T>('DELETE', path, body),

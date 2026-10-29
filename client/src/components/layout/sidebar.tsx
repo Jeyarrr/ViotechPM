@@ -58,6 +58,8 @@ export function Sidebar({
                         '/transactions',
                         '/approvals',
                         '/expenses',
+                        '/analytics',
+                        '/audit-logs',
                       ].includes(item.path) && (
                         <span className="soon-dot" aria-label="Coming in a future phase" />
                       )}

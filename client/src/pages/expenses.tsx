@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/card';
 import { ErrorState } from '@/components/shared/feedback';
 import { RecordDialog, RecordTable, StatusBadge, Notice } from '@/components/shared/crud';
 import { PostExpenseDialog, ReverseExpenseDialog } from '@/components/shared/expense-controls';
+import { CsvExport } from '@/components/shared/csv-export';
 import type { PageResult } from '@/types/core';
 import type { ExpenseRecord, ExpenseSummary, FinanceOptions } from '@/types/finance';
 
@@ -71,7 +72,10 @@ export function ExpensesPage() {
           <h1>Budget & expenses</h1>
           <p>Follow authorized allocations, posted costs, and recorded reversals.</p>
         </div>
-        <Button onClick={() => setPosting(true)}>Post approved expense</Button>
+        <div className="heading-actions">
+          <CsvExport kind="expenses" filters={filters} />
+          <Button onClick={() => setPosting(true)}>Post approved expense</Button>
+        </div>
       </div>
       <Notice message={notice} dismiss={() => setNotice('')} />
       <Card>

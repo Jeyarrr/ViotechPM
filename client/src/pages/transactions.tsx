@@ -19,6 +19,7 @@ import {
 } from '@/components/shared/crud';
 import { TransactionEditor, TransactionTypeManager } from '@/components/shared/transaction-editor';
 import { PostExpenseDialog, ReverseExpenseDialog } from '@/components/shared/expense-controls';
+import { CsvExport } from '@/components/shared/csv-export';
 import {
   ApprovalDecisionDialog,
   ApprovalPolicyEditor,
@@ -79,6 +80,7 @@ export function TransactionsPage() {
             <Plus size={16} />
             Create request
           </Button>
+          <CsvExport kind="transactions" filters={filters} />
         </div>
       </div>
       <Notice message={notice} dismiss={() => setNotice('')} />

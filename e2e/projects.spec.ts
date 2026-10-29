@@ -63,7 +63,7 @@ test('project create, validation, detail, update, archive, and restore', async (
     page.locator('.kpi-card').filter({ hasText: 'Total Projects' }).locator('.kpi-value'),
   ).toHaveText(String(baseline + 1));
   await expect(page.getByText('Project budgets', { exact: true })).toBeVisible();
-  await expect(page.getByText('Not available yet', { exact: true })).toBeVisible();
+  await expect(page.getByText('Managed project expenses', { exact: true })).toBeVisible();
   await expect(page.locator('.budget-live .recharts-surface')).toBeVisible();
   mkdirSync('.local/screenshots', { recursive: true });
   await page.screenshot({

@@ -81,12 +81,20 @@ Core CRUD endpoints are documented in [PHASE2_API.md](PHASE2_API.md). Unknown en
 | IT Support Technician | Overview, own profile                         | Projects, own tasks, milestones                     |
 | Employee              | Overview, own profile                         | Own tasks                                           |
 
-The table above records the Phase 1 foundation. Phase 2 adds assigned-project access for all five roles and object-level authorization through project membership, management, and task assignment. See the current matrix in PHASE2_API.md. Unknown roles receive no permissions. Future links continue to reveal no business data or operations.
+The table above records the Phase 1 foundation. Phase 2 adds assigned-project access for all five roles and object-level authorization through project membership, management, and task assignment. See the core matrix in PHASE2_API.md and the current operational matrix in PHASE3_API.md. Unknown roles receive no permissions. Future links continue to reveal no business data or operations.
 
 ## UI and future data
 
 React Query manages the session and dashboard requests. Protected routes wait for server session resolution, including on a refresh. API 401 responses clear the current user cache. Network errors have explicit retry states. React Hook Form and Zod validate login; Radix provides keyboard/focus handling for dropdowns and the mobile dialog. Motion respects reduced-motion preferences. Fonts are self-hosted through the build.
 
-`OverviewData` describes five real metrics, status counts, budgets, activity, deadlines, assigned tasks, and workload. Budget plotting uses Recharts only when records exist; the empty display explicitly labels its illustrative scale. Expenses are unavailable and are never fabricated. Core mutations invalidate both core queries and the dashboard. Future navigation retains unavailable states. Profile is read-only and shows actual account data. Reusable CRUD dialogs use Radix focus handling, React Hook Form, and Zod; new styles extend the unchanged login tokens.
+`OverviewData` describes five real metrics, status counts, budgets, activity, deadlines, assigned tasks, and workload. Budget plotting uses Recharts only when records exist; the empty display explicitly labels its illustrative scale. Phase 3 adds actual posted expenses and immutable reversals; the allocation series remains available alongside financial charts. Core mutations invalidate both core queries and the dashboard. Future navigation retains unavailable states. Profile is read-only and shows actual account data. Reusable CRUD dialogs use Radix focus handling, React Hook Form, and Zod; new styles extend the unchanged login tokens.
 
 The frontend build is suitable for static hosting after configuring SPA route rewrites and the API origin. No hosting has been provisioned.
+
+## Phase 3 operations
+
+Milestones extend existing projects and optionally link tasks. Transactions separate requests from spending: each submission stores an immutable snapshot and ordered independent reviewers, and each completed step has one decision. Review mutations lock project then transaction rows and validate the current assigned stage on the server. Expense posting requires the completed approved snapshot, current financial-management scope and sufficient existing budget. A unique transaction link and project serialization prevent duplicate posting and concurrent overruns. Corrections append exact negative ledger entries with reasons; the original record remains intact.
+
+All financial aggregation and arithmetic use PostgreSQL DECIMAL and 40-digit Decimal calculations. JavaScript number conversion is confined to legacy display contracts and chart presentation. The existing dashboard contract is extended with authorized operational data, never fabricated values; ordinary users receive no financial aggregates. Reads use repeatable-read transactions for consistent summaries.
+
+AuditLog remains the single event store. A nullable canonical project link supports indexed manager scopes; sensitive global/authentication/denied events remain Super Admin only. The audit viewer has no mutation endpoints and recursively redacts credential-like metadata keys. Reports reuse module filter/scope builders; bounded CSV downloads preserve the displayed filters and neutralize spreadsheet formulas. See [Phase 3 endpoints and permissions](PHASE3_API.md).

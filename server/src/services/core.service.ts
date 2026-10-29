@@ -18,15 +18,53 @@ export async function audit(
   entityId: string,
   changes: object = {},
 ) {
+  let projectId: string | null = null;
+  if (entityType === 'Project')
+    projectId =
+      (await tx.project.findUnique({ where: { id: entityId }, select: { id: true } }))?.id ?? null;
+  else if (entityType === 'Task')
+    projectId =
+      (await tx.task.findUnique({ where: { id: entityId }, select: { projectId: true } }))
+        ?.projectId ?? null;
+  else if (entityType === 'Milestone')
+    projectId =
+      (await tx.milestone.findUnique({ where: { id: entityId }, select: { projectId: true } }))
+        ?.projectId ?? null;
+  else if (entityType === 'ProjectTransaction')
+    projectId =
+      (
+        await tx.projectTransaction.findUnique({
+          where: { id: entityId },
+          select: { projectId: true },
+        })
+      )?.projectId ?? null;
+  else if (entityType === 'Expense')
+    projectId =
+      (await tx.expense.findUnique({ where: { id: entityId }, select: { projectId: true } }))
+        ?.projectId ?? null;
   await tx.auditLog.create({
     data: {
+      projectId,
       actorId,
       action,
       entityType,
       entityId,
-      metadata: JSON.parse(JSON.stringify(changes)) as Prisma.InputJsonValue,
+      metadata: redactAuditMetadata(JSON.parse(JSON.stringify(changes))) as Prisma.InputJsonValue,
     },
   });
+}
+export function redactAuditMetadata(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redactAuditMetadata);
+  if (value && typeof value === 'object')
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        /password|secret|token|credential|authorization|cookie/i.test(key)
+          ? '[REDACTED]'
+          : redactAuditMetadata(item),
+      ]),
+    );
+  return value;
 }
 export function changedFields(before: object, after: object, fields: string[]) {
   const a = before as Record<string, unknown>,

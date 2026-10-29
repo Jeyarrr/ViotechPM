@@ -36,8 +36,15 @@ Completed and verified on 2026-10-29.
 - Applied additive migrations `20261029000400_expenses` and `20261029000500_expense_reason_guard`. Reused the existing Project budget. Expense posting has a unique transaction link; signed posting/reversal constraints preserve financial history.
 - Implemented controlled approved-snapshot posting, project-level serialization, exact decimal summaries, budget overrun and allocation-reduction protection, and Super Admin reversals with required reason. Original expenses cannot be edited, deleted, or reposted.
 - Added Budget & Expenses with project/client/date/category/archive/search filters, lifetime versus filtered totals, project breakdown, real charts, controlled posting and reversals; linked financial panels in project and transaction details.
-- All 63 backend tests passed, including eight financial integrity cases. Eight expense/transaction browser cases passed across all four viewports. TypeScript, ESLint, formatting, full builds, migration deployment and preservation checks passed. Desktop financial screenshot reviewed; existing dependency notices are non-blocking. Ready for checkpoint commit/push.
+- All 63 backend tests passed, including eight financial integrity cases. Eight expense/transaction browser cases passed across all four viewports. TypeScript, ESLint, formatting, full builds, migration deployment and preservation checks passed. Desktop financial screenshot reviewed; existing dependency notices are non-blocking. Committed and pushed as `a6904e5`; GitHub CI passed.
 
 ## 3.4 — Reporting and integration
 
-Pending. Includes authorized audit viewer, filtered CSV exports with formula protection, dashboard additions, responsive acceptance, documentation, final tests, and report.
+Completed and verified on 2026-10-29.
+
+- Applied additive migration `20261029000600_audit_project_scope`: nullable indexed project link and canonical backfill; existing audit values remain unchanged.
+- Added read-only scoped audit viewer, actor/action/project/Manila-date filters and details, sensitive-event restrictions, and recursive credential-key redaction.
+- Added three paginated reports and full-filter CSV exports using operational scope builders, explicit 10,000-row bound and formula protection. Added reports screen and CSV buttons on operational directories.
+- Added live approval/milestone/financial metrics, charts and widgets to the existing dashboard, preserving original sections and metric contracts. Financial data is restricted to actual management scope, and allocation sums use Decimal before presentation conversion.
+- All 78 backend tests and all 32 final browser cases passed. TypeScript, ESLint, formatting, frontend/backend builds, nine-migration status, schema comparison, and preservation checks passed. Desktop audit and mobile reports screenshots reviewed. Initial final-browser startup encountered a stopped local database; safely restarting the existing cluster resolved it and the full rerun passed.
+- Final checkpoint is published with this report through a normal main-branch commit/push; see the repository history. No known Phase 3 blocker. Full details and remaining out-of-scope work are in [PHASE3_REPORT.md](PHASE3_REPORT.md).

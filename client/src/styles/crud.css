@@ -592,3 +592,68 @@ select.input {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.operations-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.operations-widgets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.operation-widget-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 20px 12px;
+}
+.operation-widget-list li {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--card-border);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.operation-widget-list li:last-child {
+  border-bottom: 0;
+}
+.operation-widget-list span,
+.operation-widget-list small {
+  display: block;
+  margin-top: 5px;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.operation-widget-list small {
+  color: var(--text-muted);
+}
+.report-note {
+  padding: 0 20px 14px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.7;
+}
+.audit-metadata {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 11px;
+  max-height: 360px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.export-action {
+  min-width: 0;
+}
+.export-action .field-error {
+  max-width: 300px;
+}
+@media (max-width: 600px) {
+  .operations-kpis,
+  .operations-widgets {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

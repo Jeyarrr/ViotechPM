@@ -9,6 +9,8 @@ import { createDatabase } from '../src/config/database.js';
 import { createApp } from '../src/app.js';
 import { bootstrap } from '../src/services/bootstrap.service.js';
 import { passwordOptions } from '../src/services/auth.service.js';
+import { today } from '../src/services/task.service.js';
+import { audit } from '../src/services/core.service.js';
 import type { AppConfig } from '../src/config/env.js';
 
 const testUrl = process.env.TEST_DATABASE_URL;
@@ -202,6 +204,232 @@ afterAll(async () => {
   await db.auditLog.deleteMany({ where: { actorId: { in: userIds } } });
   await db.user.deleteMany({ where: { id: { in: userIds } } });
   await db.$disconnect();
+});
+
+describe('Reports, audit and dashboard integration', () => {
+  async function reported() {
+    const { project, input } = await fixture(false),
+      created = await createRequest({
+        ...input,
+        title: '+SUM("quoted",1)\nEquipment',
+        requestedAmount: '12.30',
+      });
+    const manager = await login('manager');
+    await write(created.agent, 'post', `/api/transactions/${created.item.id}/submit`);
+    expect((await write(manager, 'post', `/api/approvals/${created.item.id}/approve`)).status).toBe(
+      200,
+    );
+    const posted = await write(admin, 'post', '/api/expenses', { transactionId: created.item.id });
+    expect(posted.status).toBe(201);
+    const day = today(),
+      upcoming = new Date(day.getTime() + 86400000).toISOString().slice(0, 10);
+    const milestone = await write(admin, 'post', '/api/milestones', {
+      projectId: project.id,
+      title: '+SUM("quoted",1)',
+      startDate: day.toISOString().slice(0, 10),
+      dueDate: upcoming,
+      status: 'NOT_STARTED',
+      priority: 'HIGH',
+    });
+    expect(milestone.status).toBe(201);
+    return {
+      project,
+      created,
+      manager,
+      expense: posted.body.data,
+      milestone: milestone.body.data,
+      upcoming,
+    };
+  }
+  it('exports all three reports with the same project/date/status/search scope as their lists', async () => {
+    const f = await reported();
+    for (const kind of ['milestones', 'transactions', 'expenses']) {
+      const query = `projectId=${f.project.id}&pageSize=1`;
+      const list = (await admin.get(`/api/${kind}?${query}`)).body.data;
+      const report = await admin.get(`/api/reports/${kind}?${query}`);
+      expect(report.status).toBe(200);
+      expect(report.body.data.total).toBe(list.total);
+      expect(report.body.data.items.map((r: { id: string }) => r.id)).toEqual(
+        list.items.map((r: { id: string }) => r.id),
+      );
+      const csv = await admin.get(`/api/reports/${kind}/export?${query}`);
+      expect(csv.status).toBe(200);
+      expect(csv.headers['content-type']).toContain('text/csv');
+      expect(csv.headers['content-disposition']).toContain(`viotechpm-${kind}.csv`);
+      expect(csv.text).toContain('"\'+SUM(""quoted"",1)');
+    }
+    expect(
+      (
+        await admin.get(
+          `/api/reports/transactions?projectId=${f.project.id}&q=${f.created.item.reference}&status=APPROVED&dateFrom=2026-10-29&dateTo=2026-10-29`,
+        )
+      ).body.data.total,
+    ).toBe(1);
+    expect(
+      (await admin.get(`/api/reports/transactions?projectId=${f.project.id}&status=REJECTED`)).body
+        .data.total,
+    ).toBe(0);
+    expect(
+      (
+        await admin.get(
+          `/api/reports/milestones?projectId=${f.project.id}&dateFrom=${f.upcoming}&dateTo=${f.upcoming}`,
+        )
+      ).body.data.total,
+    ).toBe(1);
+    expect(
+      (
+        await admin.get(
+          `/api/reports/expenses?projectId=${f.project.id}&category=${encodeURIComponent(f.expense.category)}`,
+        )
+      ).body.data.total,
+    ).toBe(1);
+    expect(
+      (await admin.get('/api/reports/milestones?dateFrom=2026-11-01&dateTo=2026-10-01')).status,
+    ).toBe(422);
+  });
+  it('enforces personal transaction exports, project membership and manager-only financial exports', async () => {
+    const f = await reported(),
+      outsider = await login('outsider'),
+      otherManager = await login('otherManager');
+    await request(runtime.app).get('/api/reports/transactions/export').expect(401);
+    expect(
+      (await outsider.get(`/api/reports/transactions?projectId=${f.project.id}`)).body.data.total,
+    ).toBe(0);
+    expect(
+      (await outsider.get(`/api/reports/milestones?projectId=${f.project.id}`)).body.data.total,
+    ).toBe(0);
+    expect(
+      (await f.created.agent.get(`/api/reports/transactions?projectId=${f.project.id}`)).body.data
+        .total,
+    ).toBe(1);
+    await f.created.agent.get(`/api/reports/expenses/export?projectId=${f.project.id}`).expect(403);
+    expect(
+      (await otherManager.get(`/api/reports/expenses?projectId=${f.project.id}`)).body.data.total,
+    ).toBe(0);
+    expect(
+      (await otherManager.get(`/api/reports/expenses/export?projectId=${f.project.id}`)).text,
+    ).not.toContain('12.30');
+    await db.projectMember.delete({
+      where: { projectId_userId: { projectId: f.project.id, userId: ids.developer! } },
+    });
+    expect(
+      (await f.created.agent.get(`/api/reports/transactions?projectId=${f.project.id}`)).body.data
+        .total,
+    ).toBe(1);
+    expect(
+      (await f.created.agent.get(`/api/reports/milestones?projectId=${f.project.id}`)).body.data
+        .total,
+    ).toBe(0);
+  });
+  it('links existing audit events to projects, filters them on the server, redacts credentials and prevents mutation', async () => {
+    const f = await reported(),
+      otherManager = await login('otherManager');
+    const query = `projectId=${f.project.id}&action=expense.posted&actorId=${ids.admin}&pageSize=1`;
+    const events = (await f.manager.get(`/api/audit-logs?${query}`)).body.data;
+    expect(events.total).toBe(1);
+    const event = events.items[0];
+    expect(event.project.id).toBe(f.project.id);
+    expect(event.metadata.amount).toBe('12.30');
+    await f.manager.get(`/api/audit-logs/${event.id}`).expect(200);
+    expect((await otherManager.get(`/api/audit-logs?${query}`)).body.data.total).toBe(0);
+    await otherManager.get(`/api/audit-logs/${event.id}`).expect(404);
+    await f.created.agent.get('/api/audit-logs').expect(403);
+    await write(admin, 'patch', `/api/audit-logs/${event.id}`, { action: 'changed' }).then((r) =>
+      expect(r.status).toBe(404),
+    );
+    await write(admin, 'delete', `/api/audit-logs/${event.id}`).then((r) =>
+      expect(r.status).toBe(404),
+    );
+    await db.$transaction((tx) =>
+      audit(tx, ids.admin!, 'workflow.access_denied', 'ProjectTransaction', f.created.item.id, {
+        password: 'fixture-only',
+        changes: { requestedAmount: { before: '1.00', after: '12.30' } },
+      }),
+    );
+    const sensitive = await db.auditLog.findFirstOrThrow({
+      where: { entityId: f.created.item.id, action: 'workflow.access_denied' },
+    });
+    expect(sensitive.metadata).toMatchObject({ password: '[REDACTED]' });
+    await f.manager.get(`/api/audit-logs/${sensitive.id}`).expect(404);
+    expect((await admin.get(`/api/audit-logs/${sensitive.id}`)).body.data.metadata.password).toBe(
+      '[REDACTED]',
+    );
+    const options = (await f.manager.get('/api/audit-logs/options')).body.data;
+    expect(options.actions).toContain('expense.posted');
+    expect(options.actions).not.toContain('auth.login.succeeded');
+    expect(
+      (await admin.get('/api/audit-logs?dateFrom=2099-01-01&dateTo=2099-01-02')).body.data.total,
+    ).toBe(0);
+    expect((await admin.get('/api/audit-logs?dateFrom=2026-11-01&dateTo=2026-10-01')).status).toBe(
+      422,
+    );
+  });
+  it('updates live dashboard approvals, milestone counts and financial values through posting and reversal without leaking aggregates', async () => {
+    const { project, input } = await fixture(false),
+      created = await createRequest({ ...input, requestedAmount: '0.30' }),
+      manager = await login('manager');
+    const get = async (agent: Agent) => (await agent.get('/api/dashboard')).body.data;
+    const before = await get(manager);
+    await write(created.agent, 'post', `/api/transactions/${created.item.id}/submit`);
+    const pending = await get(manager);
+    expect(pending.operations.pendingCount).toBe(before.operations.pendingCount + 1);
+    expect(
+      pending.operations.pendingApprovals.some((t: { id: string }) => t.id === created.item.id),
+    ).toBe(true);
+    expect(pending.operations.financial.totals.totalExpenses).toBe(
+      before.operations.financial.totals.totalExpenses,
+    );
+    await write(manager, 'post', `/api/approvals/${created.item.id}/approve`);
+    expect((await get(manager)).operations.pendingCount).toBe(before.operations.pendingCount);
+    const posted = await write(admin, 'post', '/api/expenses', { transactionId: created.item.id });
+    expect(posted.status).toBe(201);
+    const now = await get(manager);
+    const ledger = (await manager.get('/api/expenses/summary?projectState=current')).body.data;
+    expect(now.operations.financial.totals).toEqual(ledger.totals);
+    expect(
+      now.operations.recentTransactions.some((t: { id: string }) => t.id === created.item.id),
+    ).toBe(true);
+    const day = today(),
+      due = new Date(day.getTime() + 86400000).toISOString().slice(0, 10);
+    const m = await write(admin, 'post', '/api/milestones', {
+      projectId: project.id,
+      title: 'Live dashboard milestone',
+      startDate: day.toISOString().slice(0, 10),
+      dueDate: due,
+      status: 'NOT_STARTED',
+      priority: 'HIGH',
+    });
+    expect(m.status).toBe(201);
+    const live = await get(manager);
+    expect(live.operations.upcomingCount).toBe(before.operations.upcomingCount + 1);
+    expect(live.operations.upcoming.some((r: { id: string }) => r.id === m.body.data.id)).toBe(
+      true,
+    );
+    expect(
+      live.recentActivity.some((a: { description: string }) =>
+        a.description.includes('milestone created'),
+      ),
+    ).toBe(true);
+    expect((await get(created.agent)).operations.financial).toBeNull();
+    const other = await get(await login('otherManager'));
+    expect(other.operations.financial.totals.totalExpenses).toBe('0.00');
+    expect(other.operations.recentTransactions).toEqual([]);
+    expect(
+      (
+        await write(admin, 'post', `/api/expenses/${posted.body.data.id}/reverse`, {
+          comment: 'Dashboard correction fixture.',
+        })
+      ).status,
+    ).toBe(201);
+    expect((await get(manager)).operations.financial.totals.totalExpenses).toBe(
+      before.operations.financial.totals.totalExpenses,
+    );
+    expect(
+      (await write(admin, 'patch', `/api/milestones/${m.body.data.id}`, { status: 'COMPLETED' }))
+        .status,
+    ).toBe(200);
+    expect((await get(manager)).operations.upcomingCount).toBe(before.operations.upcomingCount);
+  });
 });
 
 describe('Budget and expense integrity', () => {

@@ -2,6 +2,9 @@ import type { PrismaClient, Prisma } from '../generated/prisma/client.js';
 import type { PublicUser } from './auth.service.js';
 import { projectScope } from './project.service.js';
 import { taskScope, today } from './task.service.js';
+import { money } from './expense.service.js';
+import { operationsDashboard } from './operations-dashboard.service.js';
+import { transactionScope } from './transaction.service.js';
 
 export async function overviewData(db: PrismaClient, user: PublicUser) {
   return db.$transaction(
@@ -24,10 +27,10 @@ export async function overviewData(db: PrismaClient, user: PublicUser) {
         _sum: { budget: true },
         orderBy: { startDate: 'asc' },
       });
-      const months = new Map<string, number>();
+      const months = new Map<string, ReturnType<typeof money>>();
       for (const row of budgetRows) {
         const month = row.startDate.toISOString().slice(0, 7);
-        months.set(month, (months.get(month) ?? 0) + (row._sum.budget?.toNumber() ?? 0));
+        months.set(month, (months.get(month) ?? money(0)).plus(money(row._sum.budget)));
       }
       const pendingTasks = await tx.task.count({
         where: { ...taskWhere, status: { not: 'COMPLETED' } },
@@ -87,7 +90,31 @@ export async function overviewData(db: PrismaClient, user: PublicUser) {
           OR: [
             { entityType: 'Project', entityId: { in: projectIds } },
             { entityType: 'Task', entityId: { in: activityTasks.map((t) => t.id) } },
+            { entityType: 'Milestone', projectId: { in: projectIds } },
+            {
+              entityType: 'ProjectTransaction',
+              entityId: {
+                in: (
+                  await tx.projectTransaction.findMany({
+                    where: { AND: [transactionScope(user), { project: projectWhere }] },
+                    select: { id: true },
+                  })
+                ).map((t) => t.id),
+              },
+            },
+            ...(user.permissions.includes('expenses:read')
+              ? [
+                  {
+                    entityType: 'Expense',
+                    project:
+                      user.role.key === 'super_admin'
+                        ? { archivedAt: null }
+                        : { archivedAt: null, managerId: user.id },
+                  },
+                ]
+              : []),
           ],
+          NOT: { action: 'workflow.access_denied' },
         },
         orderBy: [{ timestamp: 'desc' }, { id: 'desc' }],
         take: 10,
@@ -96,6 +123,7 @@ export async function overviewData(db: PrismaClient, user: PublicUser) {
           action: true,
           entityId: true,
           entityType: true,
+          projectId: true,
           timestamp: true,
           actor: { select: { name: true } },
         },
@@ -109,7 +137,8 @@ export async function overviewData(db: PrismaClient, user: PublicUser) {
         status: t.status,
       });
       return {
-        phase: 2,
+        phase: 3,
+        operations: await operationsDashboard(tx, user),
         currency: 'PHP',
         metrics: {
           totalProjects: projects.length,
@@ -123,13 +152,14 @@ export async function overviewData(db: PrismaClient, user: PublicUser) {
         ),
         budgetSeries: [...months].map(([month, amount]) => ({
           month,
-          budget: Math.round(amount * 100) / 100,
+          budget: amount.toNumber(),
         })),
         recentActivity: activity.map((a) => {
           const projectId =
-            a.entityType === 'Project'
+            a.projectId ??
+            (a.entityType === 'Project'
               ? a.entityId
-              : activityTasks.find((t) => t.id === a.entityId)?.projectId;
+              : activityTasks.find((t) => t.id === a.entityId)?.projectId);
           const projectName = projects.find((p) => p.id === projectId)?.name ?? 'Project';
           return {
             id: a.id,

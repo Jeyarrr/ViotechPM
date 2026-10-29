@@ -129,6 +129,7 @@ model ProjectCategory {
 }
 
 model Project {
+  auditLogs            AuditLog[]
   expenses             Expense[]
   transactions         ProjectTransaction[]
   approvalPolicy       ApprovalPolicy?
@@ -430,6 +431,8 @@ model Expense {
 }
 
 model AuditLog {
+  projectId  String?  @map("project_id") @db.Uuid
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
   id         String   @id @default(uuid()) @db.Uuid
   actorId    String?  @map("actor_id") @db.Uuid
   actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
@@ -442,6 +445,7 @@ model AuditLog {
   @@index([actorId, timestamp])
   @@index([entityType, entityId])
   @@index([timestamp])
+  @@index([projectId, timestamp])
   @@map("audit_logs")
 }
 

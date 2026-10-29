@@ -117,7 +117,7 @@ export const navigation: { label: string; items: NavigationItem[] }[] = [
         icon: ScrollText,
         permission: 'audit:read',
         description:
-          'Review a clear history of system activity. Authentication events are already recorded securely; the audit viewer arrives in a future phase.',
+          'Review a clear history of system activity. Browse authorized events, actors, recorded changes, and project history.',
       },
     ],
   },

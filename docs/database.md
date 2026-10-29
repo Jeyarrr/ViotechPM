@@ -60,6 +60,20 @@ npm run db:seed
 
 For schema development later, use `npm run db:migrate:dev -w server -- --name descriptive_name`, review its SQL, and commit the new migration. Do not edit already applied migrations. `migrate deploy` applies committed migrations without a shadow database or destructive reset.
 
+## Phase 3 additive schema
+
+The existing Project budget remains the authorized allocation. Phase 3 adds these committed migrations; `npm run db:migrate` applies them without a reset:
+
+| Migration                               | Additions                                                                                                      |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `20261029000200_milestones`             | Milestone, nullable Task milestone link, composite project/milestone relation                                  |
+| `20261029000300_transactions_approvals` | TransactionType defaults, ProjectTransaction, ApprovalPolicy, ApprovalWorkflow, ApprovalStep, ApprovalDecision |
+| `20261029000400_expenses`               | Decimal Expense ledger, unique posting link and unique reversal reference, signed-entry constraints            |
+| `20261029000500_expense_reason_guard`   | Explicit non-null reason constraint for reversal entries                                                       |
+| `20261029000600_audit_project_scope`    | Nullable indexed AuditLog project relationship and canonical backfill of that new column                       |
+
+Workflow submissions and decisions remain historical rows. Financial posting and reversals use database transactions, row locks and unique constraints. Posted amounts have no edit/delete API; reversals add an exact negative entry. Foreign keys restrict deletion of operational references; business records use existing archive conventions. Existing audit metadata and all original account/core record columns are preserved. See [Phase 3 API rules](PHASE3_API.md).
+
 ## Future Neon configuration
 
 No Neon project or production deployment has been created. When production is authorized:

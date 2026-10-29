@@ -16,6 +16,7 @@ import {
   RecordForm,
 } from '@/components/shared/crud';
 import { MilestoneEditor } from '@/components/shared/milestone-editor';
+import { CsvExport } from '@/components/shared/csv-export';
 import { milestoneStatuses, milestoneLabel } from '@/lib/milestones';
 import type { MilestoneRecord, PageResult } from '@/types/core';
 
@@ -61,6 +62,7 @@ export function MilestonesPage() {
           <h1>Milestones</h1>
           <p>Track deliverables, responsibility, and the work needed to reach them.</p>
         </div>
+        <CsvExport kind="milestones" filters={filters} />
         {user?.permissions.includes('projects:write') && (
           <Button onClick={() => setEditing('new')}>
             <Plus size={16} />

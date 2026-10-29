@@ -38,7 +38,7 @@ Default review requires **two independent reviewers**: the current project manag
 - `POST /api/approvals/:id/reassign`: Super Admin, with stepId, eligible independent approverId, and reason. Only Pending/Waiting stages can be reassigned; reviewers remain distinct. Completed decisions are never reassigned or edited. Reassign pending project reviews to a Super Admin before handing management to another employee. Pending assignments block account deactivation/role changes until safely reassigned.
 - Review actions lock the project and transaction in a consistent order. Unique workflow/sequence, workflow/reviewer, and decision/step constraints plus locks prevent duplicate or conflicting decisions. Request snapshots and decisions have no update/delete endpoints. Rejected self/unauthorized review attempts produce safe audit events outside the rolled-back mutation.
 
-## Budgets and expenses ? checkpoint 3.3
+## Budgets and expenses — checkpoint 3.3
 
 - `GET /api/expenses`, `GET /api/expenses/:id`, `GET /api/expenses/summary`, `GET /api/expenses/options`, `GET /api/expenses/postable`: Super Admin or actual managing Project Manager only. Ordinary requesters may see their transaction's related expense but cannot read project financial aggregates.
 - `POST /api/expenses`: only `transactionId` and optional `expenseDate`. Requires a fully approved independent workflow whose snapshot matches the immutable request amount, an active managed project, a positive existing allocation, and enough remaining budget. Pending, rejected and approved-unposted requests contribute zero spending. The category is the approved type snapshot. Dates cannot be future dates.
@@ -48,6 +48,37 @@ Default review requires **two independent reviewers**: the current project manag
 - `GET /api/projects/:id/budget-summary`: authorized budget, net expenses, remaining budget and utilization (PHP). Project budget edits cannot unset or reduce the allocation below net spending; budget changes have their own audit event.
 - Expense lists accept `q, projectId, clientId, category, dateFrom, dateTo, projectState=all|current|archived, sort=expenseDate|createdAt|amount|category, direction, page, pageSize`. Summary also accepts `projectPage` for its ten-project breakdown. All filters intersect financial scope. Dates/category/search affect filtered ledger totals and category charts; lifetime allocation and spending balances follow project/client/archive filters. Missing/zero allocations have null utilization, never an invented percentage.
 
-## Reports ? checkpoint 3.4
+## Reports — checkpoint 3.4
 
-Pending.
+`GET /api/reports/milestones`, `/transactions`, and `/expenses` return paginated report rows and column labels. Each accepts the same validated filters and sort as its corresponding operational list and calls the same authorization/filter builder. Milestone dates filter due dates; transaction dates filter request dates; expense dates filter ledger dates. Historical personal transaction visibility remains intact.
+
+Append `/export` to any report path for CSV. Exports use the same scope, filters and order, include all matching records regardless of page, and reject results above 10,000 rows with `422 EXPORT_TOO_LARGE`. Narrow the filters instead of accepting silent truncation. CSV uses quoted cells, doubled internal quotes, CRLF rows and UTF-8 BOM. Values beginning with spreadsheet formula operators, including whitespace/control prefixes and negative amounts, receive an apostrophe. No credentials or workflow snapshots are exported. PDF is deferred.
+
+## Audit viewer — checkpoint 3.4
+
+- Reuses the existing AuditLog. Added nullable `projectId`, indexed with timestamp, and backfilled it from canonical entity relationships without changing old audit fields/metadata. New core audit writes resolve this link from their entity, in the business transaction. Credential-like keys are recursively redacted on writes and reads.
+- `GET /api/audit-logs`: `q`, `actorId`, `action`, `projectId`, inclusive Asia/Manila `dateFrom`/`dateTo`, `sort=timestamp|action`, `direction`, `page` and `pageSize` (maximum 100). Search covers action, entity type/ID, actor name and project name. Filtering/pagination are server-side.
+- `GET /api/audit-logs/options` supplies authorized actors and actions; `GET /api/audit-logs/:id` supplies protected details. There are no create/edit/delete endpoints. Super Admin sees company events. Project Managers see Project/Task/Milestone/Transaction/Expense events for projects they currently manage. Global, authentication and denied-workflow events are Super Admin only; membership alone never grants audit access.
+
+## Dashboard — checkpoint 3.4
+
+`GET /api/dashboard` preserves Phase 2 metrics, allocation series, status distribution, tasks, workload and activity contracts, with `phase=3` and an additive `operations` object. It supplies assigned pending-review counts/rows, next-30-day unfinished milestone counts/rows, overdue milestones, milestone status counts, recent authorized transactions and optional financial summaries/charts. All are live PostgreSQL reads in one repeatable-read transaction. Financial aggregates are null for ordinary roles; Super Admin sees current projects, Project Manager sees current managed projects. Existing allocation-series arithmetic now uses Decimal before final chart conversion. Empty scopes return real zero/empty values. Core mutations invalidate both operation and dashboard query caches.
+
+## Final Phase 3 permission matrix
+
+| Capability                                           | Super Admin                              | Project Manager                               | Developer / IT Support                                        | Employee                                                      |
+| ---------------------------------------------------- | ---------------------------------------- | --------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------- |
+| Read milestones / milestone report and CSV           | Company projects                         | Managed or member projects                    | Assigned projects                                             | Assigned projects                                             |
+| Maintain milestone definitions / archive / restore   | Yes                                      | Managed projects                              | No                                                            | No                                                            |
+| Update responsible milestone status                  | Yes                                      | Managed projects                              | Own responsible milestones in assigned projects               | No                                                            |
+| Create requests                                      | Authorized current project, own identity | Authorized current project, own identity      | Assigned current project, own identity                        | Assigned current project, own identity                        |
+| Read transactions / report / CSV                     | Company                                  | Managed projects or personal history          | Personal history                                              | Personal history                                              |
+| Edit and submit requests                             | Own Draft/Returned only                  | Own Draft/Returned only                       | Own Draft/Returned only                                       | Own Draft/Returned only                                       |
+| Review request                                       | Assigned independent eligible stage      | Assigned independent stage in managed project | No                                                            | No                                                            |
+| Configure policy/types / reassign stages             | Yes, with independent reviewers          | No                                            | No                                                            | No                                                            |
+| Financial summaries / expense report / CSV / posting | Company                                  | Managed projects                              | No                                                            | No                                                            |
+| Reverse expenses / cancel Approved requests          | Yes, reason required; reverse first      | No                                            | No                                                            | No                                                            |
+| Audit viewer                                         | Company and sensitive events             | Managed project business events               | No                                                            | No                                                            |
+| Reports & analytics page                             | Yes                                      | Yes                                           | Use authorized milestone/transaction CSV on their directories | Use authorized milestone/transaction CSV on their directories |
+
+All roles remain subject to lifecycle, completion, budget and independent-approval rules. No role may approve its own request, overwrite posted amounts, post twice, or bypass an allocation overrun. Same-department affiliation does not widen project visibility.
