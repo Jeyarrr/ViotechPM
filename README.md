@@ -36,9 +36,15 @@ Built with the PERN stack, the application combines a responsive crimson-and-bla
 - **Phase 3 dashboard:** assigned approvals, net expenses, upcoming/overdue milestones, recent requests, milestone completion and financial charts alongside the existing Phase 2 sections.
 - **Responsive interface:** desktop sidebar, mobile navigation drawer, reusable dialogs, tables, forms, feedback, and a read-only personal profile.
 
+## Phase 4 collaboration
+
+Persistent notifications and authenticated Socket.IO updates, project activity timelines, task comments and mentions, private document uploads/downloads, Manila deadline reminders, and scoped operational analytics extend the existing modules. See [API and hosting requirements](docs/PHASE4_API.md) and [verification progress](docs/PHASE4_PROGRESS.md).
+
+Start both the API and frontend with `npm run dev`. If PostgreSQL is stopped, first run `npm run db:local:start`. `npm run server` starts only the API.
+
 ## Planned features
 
-Task dependencies, billing/payment processing, realtime notifications, communication tools, PDF exports, and production deployment remain future work. Phase 3 does not process payments; approved financial requests affect spending only after controlled expense posting.
+Task dependencies, billing/payment processing, external chat integrations, PDF exports, and production deployment remain future work. Phase 3 does not process payments; approved financial requests affect spending only after controlled expense posting.
 
 ## Technology stack
 

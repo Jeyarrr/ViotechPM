@@ -17,10 +17,10 @@ test('client create, edit, refresh, details, archive, restore, and responsive la
   await page.getByRole('button', { name: 'Add client' }).click();
   await page.getByLabel('Client code', { exact: false }).fill(code);
   await page.getByLabel('Client or company name', { exact: false }).fill(`Browser client ${code}`);
-  await page.getByLabel('Email or username').fill('invalid');
+  await page.getByLabel('Email address').fill('invalid');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Enter a valid email address.')).toBeVisible();
-  await page.getByLabel('Email or username').fill('contact@example.test');
+  await page.getByLabel('Email address').fill('contact@example.test');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('dialog')).not.toBeVisible();
   await page.getByLabel('Search clients').fill(code);

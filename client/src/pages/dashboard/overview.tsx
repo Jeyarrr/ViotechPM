@@ -26,6 +26,7 @@ import { taskLabel } from '@/lib/tasks';
 import { OperationsKpis, OperationsOverview } from '@/components/dashboard/operations-overview';
 
 const BudgetPlot = lazy(() => import('@/components/dashboard/budget-plot'));
+const AdvancedAnalytics = lazy(() => import('@/components/dashboard/advanced-analytics'));
 
 function BudgetChart({ data, code }: { data: OverviewData['budgetSeries']; code: string }) {
   if (!data.length)
@@ -436,6 +437,9 @@ export function OverviewPage() {
         </Card>
       </div>
       <OperationsOverview data={data.operations} />
+      <Suspense fallback={<p role="status">Loading operational analytics…</p>}>
+        <AdvancedAnalytics compact />
+      </Suspense>
       <div className="dashboard-note">
         <span>
           <span className="status-dot" />

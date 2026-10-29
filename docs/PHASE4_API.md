@@ -55,3 +55,15 @@ The business day is Asia/Manila. Existing date-only due dates are compared as ca
 A PostgreSQL advisory transaction lock prevents concurrent scheduler runs. Notification dedupe keys include entity, due date, recipient and business day. Failed transactions retry on the next tick; restarts cannot duplicate a committed reminder. A due-date change produces a new delivery key. Missed historical thresholds are not replayed in bulk; the next run evaluates the current day and current overdue interval. Due/overdue indicators are also shown in tasks, milestones and project details.
 
 Production requires a continuously running Node process (or a separately deployed worker using the same service). A serverless frontend alone cannot host Socket.IO or this scheduler. Configure process supervision, database connectivity, persistent storage and monitoring in Phase 5.
+
+## Advanced analytics
+
+Authenticated users with analytics:read (Super Admin and Project Manager) can use GET /api/analytics, /api/analytics/projects, /tasks, /milestones, /workload and /project-health. The full endpoint returns the consistent summary; suffix endpoints return the corresponding section.
+
+Filters: projectId, status (project), taskStatus, dateFrom, dateTo, page and pageSize (maximum 100). Project scope requires management or explicit membership. Financial scope additionally requires ownership as manager or Super Admin. Archived records are excluded. Empty scopes return zero totals and empty lists.
+
+Dates filter project target dates and task/milestone due dates. Completion trends use completedAt in Asia/Manila, defaulting to the last 30 days. Financial totals use lifetime posted expenses and reversals for the selected projects, reusing Phase 3 decimal calculations. Budget proximity means utilization >=80%. Workload excludes unassigned tasks and is descriptive, not a performance rating. Results use a repeatable-read transaction.
+
+The existing Analytics page retains report tabs and adds project/status/date filters, cards, charts and paginated workload/financial summaries. Dashboard health cards are lazy loaded. Events batch affected query prefixes at 250 ms and skip data refreshed after the event; initial connection does not duplicate mount queries. Reconnect and successful local mutations refresh analytics. Chart animation is disabled. No periodic frontend polling is added.
+
+Scale boundary: summary aggregation currently reads authorized project IDs and grouped workload/completion data before paginating output. Phase 5 should benchmark realistic large datasets and move daily aggregation/paging further into SQL if needed; no large-scale throughput claim is made.

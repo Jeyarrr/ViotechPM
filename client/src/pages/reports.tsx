@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import AdvancedAnalytics from '@/components/dashboard/advanced-analytics';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { useLookup, queryString } from '@/hooks/use-core';
@@ -60,6 +61,7 @@ export function ReportsPage() {
         </div>
         <CsvExport kind={kind} filters={queryFilters} />
       </div>
+      <AdvancedAnalytics />
       <div className="operation-tabs" aria-label="Report type">
         {(['milestones', 'transactions', 'expenses'] as const).map((type) => (
           <Button

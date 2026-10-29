@@ -11,6 +11,7 @@ import { createDatabase } from '../src/config/database.js';
 import { createApp } from '../src/app.js';
 import { bootstrap } from '../src/services/bootstrap.service.js';
 import { audit } from '../src/services/core.service.js';
+import { projectBudgetSummary } from '../src/services/expense.service.js';
 
 const url = process.env.TEST_DATABASE_URL;
 if (!url || !new URL(url).pathname.endsWith('_test') || url === process.env.DATABASE_URL)
@@ -397,6 +398,75 @@ it('deduplicates Manila reminders and excludes completed, archived and unauthori
     await db.notification.count({ where: { taskId: task.id, type: 'reminder.overdue' } }),
   ).toBe(0);
   await db.task.update({ where: { id: task.id }, data: { archivedAt: null } });
+});
+it('aggregates scoped analytics from database records and rejects unauthorized roles', async () => {
+  await db.task.updateMany({
+    where: { projectId, archivedAt: null },
+    data: { assigneeId: employeeId },
+  });
+  await db.project.update({ where: { id: projectId }, data: { budget: '1000.00' } });
+  const response = await admin.get('/api/analytics').query({ projectId });
+  expect(response.status).toBe(200);
+  expect(response.body.data.health.total).toBe(1);
+  const project = await db.project.findUniqueOrThrow({ where: { id: projectId } });
+  const budget = await projectBudgetSummary(db, project);
+  expect(response.body.data.financial.projects.items[0]).toMatchObject({
+    budget: budget.budget,
+    totalExpenses: budget.totalExpenses,
+    remainingBudget: budget.remainingBudget,
+    utilization: budget.utilization,
+  });
+  const assigned = await db.task.count({
+    where: { projectId, archivedAt: null, assigneeId: { not: null } },
+  });
+  expect(assigned).toBeGreaterThan(0);
+  expect(
+    response.body.data.workload.items.reduce(
+      (sum: number, row: { assigned: number }) => sum + row.assigned,
+      0,
+    ),
+  ).toBe(assigned);
+  expect(response.body.data.tasks.total).toBe(
+    await db.task.count({ where: { projectId, archivedAt: null } }),
+  );
+  expect(response.body.data.milestones.total).toBe(
+    await db.milestone.count({ where: { projectId, archivedAt: null } }),
+  );
+  expect((await employee.get('/api/analytics')).status).toBe(403);
+  expect((await request(runtime.app).get('/api/analytics')).status).toBe(401);
+  const empty = await admin.get('/api/analytics').query({ projectId: randomUUID() });
+  expect(empty.body.data.health.total).toBe(0);
+  expect(empty.body.data.tasks.total).toBe(0);
+  expect(empty.body.data.financial.totalExpenses).toBe('0.00');
+  expect((await admin.get('/api/analytics?dateFrom=2026-12-31&dateTo=2026-01-01')).status).toBe(
+    422,
+  );
+  const completed = await admin
+    .get('/api/analytics/tasks')
+    .query({ projectId, taskStatus: 'COMPLETED' });
+  expect(completed.body.data.total).toBe(
+    await db.task.count({ where: { projectId, archivedAt: null, status: 'COMPLETED' } }),
+  );
+});
+it('keeps analytics project membership and financial ownership boundaries', async () => {
+  const previous = await db.user.findUniqueOrThrow({ where: { id: employeeId } });
+  const managerRole = await db.role.findUniqueOrThrow({ where: { key: 'project_manager' } });
+  await db.user.update({ where: { id: employeeId }, data: { roleId: managerRole.id } });
+  try {
+    const member = await employee.get('/api/analytics').query({ projectId });
+    expect(member.status).toBe(200);
+    expect(member.body.data.health.total).toBe(1);
+    expect(member.body.data.financial.projects.total).toBe(0);
+    await db.projectMember.deleteMany({ where: { projectId, userId: employeeId } });
+    const outside = await employee.get('/api/analytics').query({ projectId });
+    expect(outside.body.data.health.total).toBe(0);
+    expect(outside.body.data.tasks.total).toBe(0);
+  } finally {
+    await db.user.update({ where: { id: employeeId }, data: { roleId: previous.roleId } });
+    await db.projectMember.create({
+      data: { projectId, userId: employeeId, assignedById: userId },
+    });
+  }
 });
 it('removes notification access and room subscriptions after membership removal', async () => {
   const socket = await connect(await socketSession(`employee-${email}`));

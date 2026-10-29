@@ -20,24 +20,103 @@ export function useRealtime(userId?: string) {
       },
     });
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const keys = new Set<string>();
+    const keys = new Map<string, number>();
     const invalidate = (key: string) => {
-      keys.add(key);
+      keys.set(key, Date.now());
       if (timer) return;
       timer = setTimeout(() => {
-        for (const key of keys) void client.invalidateQueries({ queryKey: [key] });
+        for (const [key, changedAt] of keys) {
+          const prefix = key.split('/');
+          void client.invalidateQueries(
+            {
+              predicate: (query) =>
+                prefix.every((part, index) => query.queryKey[index] === part) &&
+                query.state.dataUpdatedAt < changedAt,
+            },
+            { cancelRefetch: false },
+          );
+        }
         keys.clear();
         timer = undefined;
       }, 250);
     };
+    let connectedBefore = false;
     socket.on('connect', () => {
-      invalidate('notifications');
-      invalidate('dashboard');
-      invalidate('core');
+      // Initial mounting already fetches active queries. Reconnect catches missed events.
+      if (connectedBefore) {
+        invalidate('notifications');
+        invalidate('dashboard');
+        invalidate('core');
+        invalidate('analytics');
+      }
+      connectedBefore = true;
     });
     socket.on('notifications:changed', () => invalidate('notifications'));
-    socket.on('workspace:changed', () => {
-      invalidate('core');
+    socket.on('workspace:changed', (event: { entityType?: string }) => {
+      const affected: Record<string, string[]> = {
+        Task: [
+          'tasks',
+          'task',
+          'comments',
+          'documents',
+          'activities',
+          'project',
+          'projects',
+          'milestones',
+          'milestone',
+          'project-milestones',
+          'report',
+        ],
+        Milestone: [
+          'milestones',
+          'milestone',
+          'project-milestones',
+          'milestone-options',
+          'tasks',
+          'task',
+          'project',
+          'activities',
+          'report',
+        ],
+        Project: [
+          'projects',
+          'project',
+          'project-budget',
+          'members',
+          'member-options',
+          'activity-members',
+          'activities',
+          'tasks',
+          'task',
+          'lookups/projects',
+          'lookups/assignees',
+          'approval-policy',
+        ],
+        ProjectTransaction: [
+          'transactions',
+          'transaction',
+          'transaction-history',
+          'approvals',
+          'expenses',
+          'expense-summary',
+          'project-budget',
+          'postable-transactions',
+          'activities',
+          'report',
+        ],
+        Expense: [
+          'expenses',
+          'expense-summary',
+          'project-budget',
+          'postable-transactions',
+          'transaction',
+          'report',
+          'activities',
+        ],
+        ProjectDocument: ['documents', 'activities'],
+      };
+      for (const key of affected[event.entityType ?? ''] ?? ['activities'])
+        invalidate('core/' + key);
       invalidate('dashboard');
       invalidate('analytics');
     });

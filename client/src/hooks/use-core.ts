@@ -10,6 +10,7 @@ export function useCoreMutation<T>(mutationFn: (input: T) => Promise<unknown>) {
       await Promise.all([
         client.invalidateQueries({ queryKey: ['core'] }),
         client.invalidateQueries({ queryKey: ['dashboard'] }),
+        client.invalidateQueries({ queryKey: ['analytics'] }),
       ]);
     },
   });

@@ -2,7 +2,7 @@
 
 ## Current checkpoint
 
-Checkpoints 4.1?4.3 implemented and verified; checkpoint 4.4 next. Phase 4 is not complete.
+Checkpoints 4.1-4.4 implemented and verified. Phase 4 is complete; final Git delivery is being recorded.
 
 ## Preserved starting state
 
@@ -19,10 +19,10 @@ Checkpoints 4.1?4.3 implemented and verified; checkpoint 4.4 next. Phase 4 is no
 
 ## Checkpoints
 
-1. 4.1: persistent notifications, authenticated Socket.IO and notification UI — pending.
-2. 4.2: scoped audit timeline, task discussion and mentions — pending.
-3. 4.3: private document storage and deduplicated Manila deadline scheduler — pending.
-4. 4.4: operational analytics, integration, regression and final report — pending.
+1. 4.1: persistent notifications, authenticated Socket.IO and notification UI — complete.
+2. 4.2: scoped audit timeline, task discussion and mentions — complete.
+3. 4.3: private document storage and deduplicated Manila deadline scheduler — complete.
+4. 4.4: operational analytics, integration, regression and final report — complete.
 
 ## Verification and delivery policy
 
@@ -59,3 +59,23 @@ Use isolated `viotechpm_test` for tests. Apply additive migrations only. Record 
 - 14 focused backend cases passed, including signatures/traversal/size, private downloads, archive protection, simulated storage failure, reminder dedupe, completed/archived exclusion and Manila timezone boundaries. Four browser cases passed with upload/download plus two-viewer discussion across all viewports. Types and lint passed.
 - Documented storage/scanning limitations, supported formats, reminder settings and persistent hosting requirements in PHASE4_API.md. No production storage or deployment configured.
 - Checkpoint 4.2 committed and pushed as 8a59f0f.
+
+## Checkpoint 4.4 integration (2026-10-30)
+
+- New analytics service/routes and dashboard component, integrated into existing overview and reporting pages. Theme and login preserved.
+- Scope, date/status filters, task trends, milestone metrics, workload and Phase 3 financial calculations; no hardcoded production data.
+- Full backend run: 94 passed. Corrected middleware scope after the first full regression caught an unsupported auth route returning 401 instead of 404.
+- Full browser suite in progress; corrected email-form selectors accidentally changed with the login label, and selected analytics filters by accessible combobox role.
+- Read-only preservation check passed for accounts/credentials/roles, environment, login, palette and logos. Thirteen migrations applied.
+- Local empty-dataset analytics timings: 137 ms initial, 23-26 ms warm; no large-data benchmark claimed.
+- Checkpoint 4.3 pushed as bb46b46; CI 40912567979 passed.
+- Remaining: final browser/backend/static results, final report completion, commit/push and CI check.
+
+## Final local verification
+
+- 94/94 backend tests passed across seven files in 50.27 seconds, including Phase 1-3 regression and new authorization, financial/workload analytics checks.
+- All 40 browser cases verified: 39 passed in the full four-viewport run, and the failed desktop team workflow passed its focused rerun after the realtime request-volume fix. The initial stale-selector run was interrupted and is not counted as passing.
+- Realtime invalidation now targets affected query prefixes, batches events, avoids initial duplicate fetching and skips data refreshed after the event. Existing API rate limits remain unchanged.
+- Final frontend/backend builds, TypeScript, ESLint and formatting passed. Desktop/mobile analytics screenshots inspected; no mobile page overflow.
+- Actual local admin/admin login, Lawrence Arvin Violan display name, analytics API and logout verified successfully.
+- Full report: PHASE4_REPORT.md. Phase 5 storage/hosting/scanning/large-data hardening limitations documented.

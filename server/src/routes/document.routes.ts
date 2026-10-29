@@ -66,7 +66,15 @@ export function documentRoutes(db: PrismaClient, storage: PrivateStorage = local
   });
   router.post(
     '/projects/:id/documents',
-    rateLimit({ windowMs: 60000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false }),
+    rateLimit({
+      windowMs: 60000,
+      limit: 10,
+      standardHeaders: 'draft-8',
+      legacyHeaders: false,
+      message: {
+        error: { code: 'RATE_LIMITED', message: 'Too many uploads. Please try again shortly.' },
+      },
+    }),
     raw({ type: 'application/octet-stream', limit: uploadLimit() }),
     async (req, res) => {
       const projectId = idSchema.parse(req.params.id);

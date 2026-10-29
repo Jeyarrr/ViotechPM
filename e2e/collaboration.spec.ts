@@ -79,6 +79,16 @@ test('task discussion persists and updates a second viewer in realtime', async (
     ).toBeVisible();
     await page.getByLabel('Activity type').selectOption('comment');
     await expect(page.getByRole('link', { name: 'comment created', exact: true })).toBeVisible();
+    await page.goto('/analytics');
+    await expect(
+      page.getByRole('heading', { name: 'Operational analytics', exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole('combobox', { name: 'Analytics project', exact: true })
+      .selectOption(project.id);
+    await expect(
+      page.getByRole('link', { name: 'Discussion browser project', exact: true }),
+    ).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
