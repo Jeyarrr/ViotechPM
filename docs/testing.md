@@ -10,7 +10,7 @@ npm test
 
 Tests require a real PostgreSQL `TEST_DATABASE_URL`. They refuse the application URL and any test database whose name does not end in `_test`. They apply the actual committed migration to the test database before exercising Express through Supertest, with the real PostgreSQL session store and Argon2 verification. They create temporary test accounts only in the test database and remove those account rows afterward. Anonymous failure audits and session rows can remain in the test database and expire normally; they are never inserted into the application database.
 
-The 23 automated checks cover:
+The 42 automated checks cover:
 
 - Readiness/connection, migrations, role/department bootstrap, Argon2id hashing, repeatable seed without password reset.
 - Required environment validation without value leakage, production HTTPS requirement, least-privilege mapping for all roles and unknown-role denial.
@@ -18,6 +18,11 @@ The 23 automated checks cover:
 - HttpOnly/SameSite cookies, Secure production cookie behind a trusted TLS proxy, no hash exposure, session rotation, refresh persistence, expiry and absolute lifetime enforcement, and logout invalidation.
 - Missing/forged/non-ASCII CSRF tokens, absent/untrusted origins, CORS restrictions, malformed JSON/content types, and rate limiting.
 - Real backend role denial/allowance, role/status changes on existing sessions, audit/last-login writes, and actual zero/empty dashboard data.
+- Client and project CRUD, duplicates, strict validation, partial updates, search/filter/page, category configuration, scoped URL denial, and archive/restore preservation.
+- Employee creation/hash privacy, profile edits, role escalation denial, last-active-admin concurrent protection, deactivation/session revocation, and safe handoff requirements.
+- Member assignment/removal/uniqueness, active eligibility, task validation/CRUD/status/completion/reopening, per-role task visibility, reassignment, archive history, and real progress.
+- Authorized dashboard totals, budgets, statuses, activity, workload, deadlines and own tasks; aggregate refresh after changes and archive exclusion; absence of fabricated expenses.
+- Concurrent member removal versus assignment, plus task and authenticated-session persistence across an API restart.
 
 ## Browser acceptance
 
@@ -27,9 +32,11 @@ npm run db:seed
 npm run test:e2e
 ```
 
-Playwright starts the real frontend/API if needed and tests desktop Chromium (1440×1000), laptop (1280×800), tablet (820×1180), and a mobile Pixel 7 viewport. It reads the seeded bootstrap credentials from the ignored `server/.env`, without embedding them in test source. Run against your local development administrator, not a production account. Traces are disabled so credentials are not captured in trace artifacts.
+Playwright starts isolated real frontend/API instances on 5174/4001 against `TEST_DATABASE_URL` and tests desktop Chromium (1440×1000), laptop (1280×800), tablet (820×1180), and a mobile Pixel 7 viewport. It reads bootstrap credentials from ignored `server/.env` and bootstraps them only in the test database, without embedding them in source. Existing dev servers are never reused by the test launcher. Traces are disabled so credentials are not captured in trace artifacts. Run backend and browser suites sequentially: both use the same test database.
 
 Coverage: protected route redirect, original logo loading, show/hide password, sign-in, real dashboard/no sample data, horizontal overflow, page-refresh persistence, desktop sidebar collapse/expand, mobile drawer selection/close, future module state, profile, account dropdown, sign-out, redirect after logout, and unexpected browser/API errors. Blank login and signed-in dashboard screenshots are saved under ignored `.local/screenshots` for visual review.
+
+The 16 browser cases also cover client create/validation/edit/detail/archive/restore, project creation/date errors/budgets/details/edit/archive/restore, employee creation/edit/deactivation, project team assignment, task creation/list/status/Kanban/archive, completion progress, and dashboard refresh after a UI mutation. Browser fixtures are archived or deactivated in the test database, retaining their audit history. Backend fixtures are deleted only from the isolated test database after each suite. No fixtures are inserted into the application database.
 
 ## Static and build checks
 

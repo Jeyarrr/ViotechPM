@@ -93,9 +93,14 @@ export async function createApp(config: AppConfig, db: PrismaClient) {
   app.use('/api/project-categories', requireAuth(auth), categoryRoutes(db));
   app.use('/api/employees', requireAuth(auth), employeeRoutes(db));
   app.use('/api/tasks', requireAuth(auth), taskRoutes(db));
-  app.get('/api/dashboard', requireAuth(auth), requirePermission('overview:read'), (_req, res) => {
-    res.json({ data: overviewData() });
-  });
+  app.get(
+    '/api/dashboard',
+    requireAuth(auth),
+    requirePermission('overview:read'),
+    async (req, res) => {
+      res.json({ data: await overviewData(db, req.user!) });
+    },
+  );
   // A real authorization boundary for the system foundation; no settings CRUD in Phase 1.
   app.get(
     '/api/system/access',

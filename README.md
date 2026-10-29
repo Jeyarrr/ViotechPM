@@ -1,8 +1,10 @@
 # ViotechPM
 
-Phase 1 of the project workspace for **Viotech I.T. Solutions**. A PERN monorepo with secure authentication, a PostgreSQL user foundation, a responsive dark interface, and an honest empty dashboard ready for future modules.
+The project workspace for **Viotech I.T. Solutions**. A PERN monorepo with secure authentication, PostgreSQL-backed client/project/team/task management, a responsive crimson-and-black interface, and authorized live dashboard statistics.
 
 ## Quick start
+
+**Already configured on this machine:** run `npm run db:local:start` after a computer restart, then `npm run dev`. This starts both the API and frontend. Existing environment files and accounts are preserved.
 
 Requires Node.js **22.12+** (Node 24 recommended), npm, and PostgreSQL. This workspace was verified with Node 24 and PostgreSQL 18. No application is deployed.
 
@@ -53,15 +55,19 @@ For an existing PostgreSQL server, copy `server/.env.example` to `server/.env`, 
 | `npm run db:migrate:dev -w server -- --name change_name` | Author a future migration against a development database      |
 | `npm run db:seed`                                        | Safely bootstrap roles, departments, and the first admin      |
 
-## Phase 1 features
+## Implemented features
 
 - Official logos preserved in `client/public/assets`, with the dark logo used on login, sidebar, and application branding.
 - Responsive login, protected routes, collapsible sidebar, mobile drawer, accessible account menu, and read-only profile.
-- Overview with five zero-value KPIs, project status, budget/expenses, project activity, deadlines, and team workload. No fabricated project statistics or production demo records. The empty budget chart explicitly labels its illustrative scale.
+- Authorized dashboard with five real KPIs, all five project statuses, project budgets by start month, recent activity, upcoming deadlines, assigned tasks, and workload. No fabricated records or expense figures.
+- Clients: create, search/filter/sort/page, edit, details, archive, restore, and audit history.
+- Projects: client/category/manager relationships, PHP decimal budgets, date/status validation, details, team assignments, task progress, archive/restore, and audit history. Categories support administrator configuration.
+- Team: existing account directory, secure employee creation, role/department editing, activation/deactivation, project memberships, last-active-admin protection, and immediate session revocation on deactivation.
+- Tasks: create/edit/detail/archive, assignment validation, My Tasks filters, responsive list and Kanban, persisted status selectors, completion timestamps, and project completion/reopening rules.
 - Five roles, four configurable department records, account status, last login, and append-only application audit events for authentication/bootstrap.
 - Argon2id passwords, PostgreSQL-backed sessions, HttpOnly cookies, login session regeneration, fixed eight-hour sessions, session destruction on logout, rate limits, CSRF tokens, restricted origins, and structured errors.
 - Database-backed authorization on protected endpoints. Role/status is rechecked on every protected request. Future navigation is filtered by permission; direct unauthorized routes show access restricted.
-- Future module pages clearly state that the module is not available. No project, task, client, finance, milestone, or approval CRUD has been implemented.
+- Finance, milestone workflows, approvals, and other later modules remain clearly marked unavailable.
 
 ## Stack
 
@@ -73,11 +79,14 @@ React 19, TypeScript 5.9, Vite 7, Tailwind CSS 4, shadcn/ui-style source compone
 - [Schema, local PostgreSQL, bootstrap, and future Neon setup](docs/database.md)
 - [Verification and acceptance coverage](docs/testing.md)
 - [Phase 1 delivery report](docs/phase-1-report.md)
+- [Phase 2 API, permission matrix, and completion rules](docs/PHASE2_API.md)
+- [Phase 2 checkpoint progress](docs/PHASE2_PROGRESS.md)
+- [Phase 2 completion report](docs/PHASE2_REPORT.md)
 
 ## Design and scope
 
 Maroon, charcoal, and neutral surfaces follow the official Viotech identity. Both original logo files are copied without edits or distortion. The legacy Figma reference could not be read because the account reached its MCP tool limit; the supplied written requirements drove the redesign.
 
-Phase 2 can add authorized project/client/task models, scoped project membership, milestone workflows, and real dashboard aggregations. Production hosting, multi-instance rate limiting, notification services, and deployment are outside Phase 1. Do not expose the development PostgreSQL cluster to a network.
+Phase 2 extends the existing login design without changing its source, logo, or color tokens. Advanced milestones, approvals, expenses/billing, realtime notifications, and production deployment remain outside this implementation. Do not expose the development PostgreSQL cluster to a network.
 
 Git is initialized locally. To publish source later, create your intended private GitHub repository and add it as a remote. No remote, push, or deployment has been performed.

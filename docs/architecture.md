@@ -1,12 +1,14 @@
 # Architecture and API
 
+Phase 2 extends this foundation with client, project, employee, membership, task, and dashboard services. The complete current endpoint and object-permission matrix is in [PHASE2_API.md](PHASE2_API.md).
+
 ## Structure
 
 ```text
 client/
   public/assets/        Original official logos
   src/components/       ui primitives, shared feedback/branding, app layout
-  src/pages/            Login, overview, profile, future modules, not-found
+  src/pages/            Login, overview, clients, projects, team, tasks, profile, future modules
   src/hooks/            Authentication queries and mutations
   src/lib/              Query client and display helpers
   src/services/         Typed HTTP client and error handling
@@ -18,7 +20,7 @@ server/
   prisma.config.ts      CLI database URL and migration/seed configuration
   src/config/           Validated environment, database factory, role permissions
   src/controllers/      HTTP response and session lifecycle orchestration
-  src/routes/           Auth route definitions and sign-in rate limiting
+  src/routes/           Auth and authorized core CRUD endpoints
   src/middleware/       Authentication, authorization, CSRF/origin, errors
   src/repositories/     Database selection and user lookup
   src/services/         Authentication, bootstrap, dashboard contract
@@ -50,24 +52,24 @@ Sessions have a fixed eight-hour lifetime. There is no remember-me option or pub
 - Helmet sets security headers, API responses are marked `no-store`, JSON size is limited to 16 KB, mutation origins are allowlisted, and every mutation requires a cryptographically random CSRF token.
 - Errors return safe messages and never serialize driver exceptions or environment values. Unexpected errors log a generic event; add centralized redacted telemetry in a later operational phase.
 - Password hashing uses Argon2id with 19 MiB memory, two iterations, and parallelism one. Tune upward for deployment hardware after measuring concurrency.
-- Bootstrap credentials are environment-only. Repeating bootstrap preserves existing user password, status, department, and role. No account administration HTTP endpoints are exposed in Phase 1.
-- Existing role/dept data is real foundation data. Authentication audit events are real events. Project-related dashboard data remains empty until its modules exist.
+- Bootstrap credentials are environment-only. Repeating bootstrap preserves existing user password, status, department, and role. Phase 2 employee administration requires an active Super Admin and protects the last active administrator.
+- Existing roles/departments and audit events are real data. Dashboard reads authorized core records in a repeatable-read transaction; empty workspaces still show actual zero values.
 
 ## Endpoints
 
 Success responses use `{ "data": ... }`. Failures use `{ "error": { "code": "...", "message": "..." } }`. Validation errors additionally contain safe `fields` entries.
 
-| Method | Path                 | Access          | Result                                                                  |
-| ------ | -------------------- | --------------- | ----------------------------------------------------------------------- |
-| GET    | `/api/health`        | Public          | Database readiness, 200 or 503                                          |
-| GET    | `/api/auth/csrf`     | Public          | Current session CSRF token                                              |
-| POST   | `/api/auth/login`    | Origin + CSRF   | Sign in; 200, 401, 403, 422, or 429                                     |
-| POST   | `/api/auth/logout`   | Origin + CSRF   | Destroy session; idempotent for an anonymous session with a valid token |
-| GET    | `/api/auth/me`       | Authenticated   | Public user, role, department, permissions                              |
-| GET    | `/api/dashboard`     | `overview:read` | Typed zero metrics and empty collections                                |
-| GET    | `/api/system/access` | `system:manage` | System foundation permission boundary                                   |
+| Method | Path                 | Access          | Result                                                                   |
+| ------ | -------------------- | --------------- | ------------------------------------------------------------------------ |
+| GET    | `/api/health`        | Public          | Database readiness, 200 or 503                                           |
+| GET    | `/api/auth/csrf`     | Public          | Current session CSRF token                                               |
+| POST   | `/api/auth/login`    | Origin + CSRF   | Sign in; 200, 401, 403, 422, or 429                                      |
+| POST   | `/api/auth/logout`   | Origin + CSRF   | Destroy session; idempotent for an anonymous session with a valid token  |
+| GET    | `/api/auth/me`       | Authenticated   | Public user, role, department, permissions                               |
+| GET    | `/api/dashboard`     | `overview:read` | Authorized current-project metrics and related task/activity collections |
+| GET    | `/api/system/access` | `system:manage` | System foundation permission boundary                                    |
 
-Other endpoints return 404. Missing sessions receive 401; authenticated users without permission receive 403.
+Core CRUD endpoints are documented in [PHASE2_API.md](PHASE2_API.md). Unknown endpoints return 404. Missing sessions receive 401; authenticated users without permission receive 403. Inaccessible project/task IDs return the same 404 as missing IDs.
 
 ## Role boundaries
 
@@ -79,12 +81,12 @@ Other endpoints return 404. Missing sessions receive 401; authenticated users wi
 | IT Support Technician | Overview, own profile                         | Projects, own tasks, milestones                     |
 | Employee              | Overview, own profile                         | Own tasks                                           |
 
-Future links reveal no business data or CRUD operations. The role map defines broad capabilities only; Phase 2 must add project membership and object-level authorization before project APIs are introduced. Unknown roles receive no permissions.
+The table above records the Phase 1 foundation. Phase 2 adds assigned-project access for all five roles and object-level authorization through project membership, management, and task assignment. See the current matrix in PHASE2_API.md. Unknown roles receive no permissions. Future links continue to reveal no business data or operations.
 
 ## UI and future data
 
 React Query manages the session and dashboard requests. Protected routes wait for server session resolution, including on a refresh. API 401 responses clear the current user cache. Network errors have explicit retry states. React Hook Form and Zod validate login; Radix provides keyboard/focus handling for dropdowns and the mobile dialog. Motion respects reduced-motion preferences. Fonts are self-hosted through the build.
 
-`OverviewData` describes all five metrics and each future chart/list collection. Budget plotting uses Recharts only when records exist; the initial display is an explicitly labeled empty chart scale. Future navigation includes polished unavailable states. Profile is read-only and shows actual account data. Source UI primitives follow shadcn conventions and are configured in `client/components.json` for subsequent additions.
+`OverviewData` describes five real metrics, status counts, budgets, activity, deadlines, assigned tasks, and workload. Budget plotting uses Recharts only when records exist; the empty display explicitly labels its illustrative scale. Expenses are unavailable and are never fabricated. Core mutations invalidate both core queries and the dashboard. Future navigation retains unavailable states. Profile is read-only and shows actual account data. Reusable CRUD dialogs use Radix focus handling, React Hook Form, and Zod; new styles extend the unchanged login tokens.
 
 The frontend build is suitable for static hosting after configuring SPA route rewrites and the API origin. No hosting has been provisioned.

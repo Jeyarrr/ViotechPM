@@ -34,9 +34,30 @@ export interface OverviewData {
     totalBudget: number;
   };
   projectStatus: { status: string; count: number }[];
-  budgetSeries: { month: string; budget: number; expenses: number }[];
-  recentActivity: { id: string; description: string; occurredAt: string }[];
-  deadlines: { id: string; title: string; projectName: string; dueAt: string }[];
+  budgetSeries: { month: string; budget: number }[];
+  recentActivity: {
+    id: string;
+    projectId: string;
+    description: string;
+    actorName: string;
+    occurredAt: string;
+  }[];
+  deadlines: {
+    id: string;
+    title: string;
+    projectId: string;
+    projectName: string;
+    dueAt: string;
+    status: string;
+  }[];
+  myTasks: {
+    id: string;
+    title: string;
+    projectId: string;
+    projectName: string;
+    dueAt: string;
+    status: string;
+  }[];
   teamWorkload: { userId: string; name: string; assignedTasks: number; completedTasks: number }[];
 }
 export interface ApiEnvelope<T> {

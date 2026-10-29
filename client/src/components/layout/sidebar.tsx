@@ -61,7 +61,7 @@ export function Sidebar({
         {!collapsed && (
           <div className="workspace-status">
             <span className="status-dot" />
-            <span>Foundation is ready</span>
+            <span>Workspace connected</span>
             <ArrowUpRight size={13} />
           </div>
         )}

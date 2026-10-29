@@ -298,6 +298,30 @@ select.input {
   align-items: center;
   gap: 10px;
 }
+.budget-summary .expense-unavailable {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+.my-tasks-card {
+  grid-column: 1 / -1;
+}
+.overview-page .activity-card .data-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+.overview-page .data-list li > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.overview-page .data-list small {
+  display: block;
+  color: var(--text-muted);
+  margin-top: 5px;
+  font-size: 11px;
+}
+.overview-page .data-list time {
+  flex-shrink: 0;
+}
 .employee-identity > div {
   min-width: 0;
 }

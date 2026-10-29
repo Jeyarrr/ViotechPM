@@ -10,7 +10,7 @@ import {
 import { currency } from '@/lib/utils';
 import type { OverviewData } from '@/types/api';
 
-// Loaded only when future modules supply real financial data.
+// Loaded only when authorized projects have recorded budgets.
 export default function BudgetPlot({
   data,
   code,
@@ -23,10 +23,12 @@ export default function BudgetPlot({
       <ResponsiveContainer width="100%" height={250}>
         <AreaChart data={data}>
           <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
-          <XAxis dataKey="month" stroke="var(--text-muted)" />
+          <XAxis dataKey="month" stroke="var(--text-muted)" tick={{ fontSize: 11 }} />
           <YAxis
             stroke="var(--text-muted)"
-            tickFormatter={(value: number) => currency(value, code)}
+            width={72}
+            tick={{ fontSize: 11 }}
+            tickFormatter={(value: number) => currency(value, code, true)}
           />
           <Tooltip
             formatter={(value) => currency(Number(value), code)}
@@ -40,16 +42,12 @@ export default function BudgetPlot({
           <Area
             type="monotone"
             dataKey="budget"
+            name="Allocated budget"
+            dot={{ r: 4, fill: 'var(--chart-budget)' }}
+            isAnimationActive={false}
             stroke="var(--chart-budget)"
             fill="var(--chart-budget)"
             fillOpacity={0.12}
-          />
-          <Area
-            type="monotone"
-            dataKey="expenses"
-            stroke="var(--chart-expenses)"
-            fill="var(--chart-expenses)"
-            fillOpacity={0.04}
           />
         </AreaChart>
       </ResponsiveContainer>

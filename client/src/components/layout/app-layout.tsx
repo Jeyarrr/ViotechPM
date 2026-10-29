@@ -146,7 +146,7 @@ export function AppLayout() {
           <span>© {new Date().getFullYear()} Viotech I.T. Solutions</span>
           <span>
             <CircleHelp size={13} />
-            ViotechPM <span className="footer-version">v0.1 · Foundation</span>
+            ViotechPM <span className="footer-version">Core workspace</span>
           </span>
         </footer>
       </div>

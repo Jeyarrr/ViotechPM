@@ -430,6 +430,125 @@ describe('Team and tasks on PostgreSQL', () => {
     expect((await write(admin, 'post', `/api/projects/${projectId}/restore`)).status).toBe(200);
     expect((await employee.get(`/api/tasks?projectId=${projectId}`)).body.data.total).toBe(1);
   });
+  it('returns real scoped dashboard statistics and refreshes after task and project changes', async () => {
+    const { projectId, id, input } = await setupTask(users.it_support!);
+    const support = await login('it_support');
+    const future = '2099-01-01';
+    expect((await write(admin, 'patch', `/api/tasks/${id}`, { dueDate: future })).status).toBe(200);
+    expect(
+      (await write(admin, 'patch', `/api/projects/${projectId}`, { status: 'ACTIVE' })).status,
+    ).toBe(200);
+    const hidden = await write(
+      admin,
+      'post',
+      '/api/projects',
+      await projectInput({ managerId: adminId, budget: '999999.99' }),
+    );
+    expect(hidden.status).toBe(201);
+    expect(
+      (
+        await write(admin, 'post', '/api/tasks', {
+          ...input,
+          projectId: hidden.body.data.id,
+          code: `HIDDEN-${runId}`,
+          title: 'Private task',
+          assigneeId: null,
+        })
+      ).status,
+    ).toBe(201);
+    const overview = (await support.get('/api/dashboard').expect(200)).body.data;
+    expect(overview.metrics).toEqual({
+      totalProjects: 1,
+      activeProjects: 1,
+      pendingTasks: 1,
+      completedProjects: 0,
+      totalBudget: 12345.67,
+    });
+    expect(overview.budgetSeries).toEqual([{ month: '2026-10', budget: 12345.67 }]);
+    expect(overview.myTasks.map((t: { id: string }) => t.id)).toEqual([id]);
+    expect(overview.deadlines.map((t: { id: string }) => t.id)).toEqual([id]);
+    expect(overview.teamWorkload).toEqual([
+      { userId: users.it_support, name: 'Core it_support', assignedTasks: 1, completedTasks: 0 },
+    ]);
+    expect(overview.recentActivity.length).toBeGreaterThan(0);
+    expect(
+      overview.recentActivity.every((r: { projectId: string }) => r.projectId === projectId),
+    ).toBe(true);
+    expect(JSON.stringify(overview)).not.toContain('Private task');
+    expect(JSON.stringify(overview)).not.toContain('expenses');
+    expect(
+      (await write(support, 'patch', `/api/tasks/${id}/status`, { status: 'COMPLETED' })).status,
+    ).toBe(200);
+    expect(
+      (await write(admin, 'patch', `/api/projects/${projectId}`, { status: 'COMPLETED' })).status,
+    ).toBe(200);
+    const done = (await support.get('/api/dashboard')).body.data;
+    expect(done.metrics).toMatchObject({
+      completedProjects: 1,
+      pendingTasks: 0,
+      activeProjects: 0,
+    });
+    expect(done.myTasks).toEqual([]);
+    expect(done.deadlines).toEqual([]);
+    expect(done.projectStatus.find((s: { status: string }) => s.status === 'COMPLETED').count).toBe(
+      1,
+    );
+    expect((await write(admin, 'delete', `/api/projects/${projectId}`)).status).toBe(200);
+    const archived = (await support.get('/api/dashboard')).body.data;
+    expect(Object.values(archived.metrics)).toEqual([0, 0, 0, 0, 0]);
+    expect(archived.recentActivity).toEqual([]);
+  });
+  it('preserves saved task data and the existing authenticated session across an API restart', async () => {
+    const { id } = await setupTask();
+    const token = (await admin.get('/api/auth/csrf')).body.data.csrfToken as string;
+    const response = await admin.get(`/api/tasks/${id}`).expect(200);
+    const cookie = (await write(admin, 'post', '/api/auth/login', { email, password })).headers[
+      'set-cookie'
+    ] as unknown as string[];
+    expect(token).toBeTruthy();
+    await runtime.close();
+    runtime = await createApp(config, db);
+    const restarted = await request(runtime.app)
+      .get(`/api/tasks/${id}`)
+      .set('Cookie', cookie.map((c) => c.split(';')[0]).join('; '))
+      .expect(200);
+    expect(restarted.body.data.code).toBe(response.body.data.code);
+    expect(restarted.body.data.title).toBe(response.body.data.title);
+  });
+  it('serializes competing member removal and new task assignments without orphaned responsibility', async () => {
+    const { projectId, id, input } = await setupTask();
+    expect((await write(admin, 'patch', `/api/tasks/${id}`, { assigneeId: null })).status).toBe(
+      200,
+    );
+    const token = (await admin.get('/api/auth/csrf')).body.data.csrfToken as string;
+    const [remove, assign] = await Promise.all([
+      admin
+        .delete(`/api/projects/${projectId}/members/${users.developer}`)
+        .set('Origin', config.CLIENT_ORIGIN)
+        .set('X-CSRF-Token', token)
+        .send({}),
+      admin
+        .post('/api/tasks')
+        .set('Origin', config.CLIENT_ORIGIN)
+        .set('X-CSRF-Token', token)
+        .send({ ...input, code: `RACE-${runId}` }),
+    ]);
+    expect([200, 409]).toContain(remove.status);
+    expect([201, 409]).toContain(assign.status);
+    expect(remove.status === 200 && assign.status === 201).toBe(false);
+    const assigned = await db.task.count({
+      where: {
+        projectId,
+        assigneeId: users.developer,
+        archivedAt: null,
+        status: { not: 'COMPLETED' },
+      },
+    });
+    if (assigned)
+      expect(await db.projectMember.count({ where: { projectId, userId: users.developer } })).toBe(
+        1,
+      );
+  });
   it('preserves project membership during manager handoff and rejects unsafe employee deactivation', async () => {
     const { projectId } = await setupTask();
     expect(

@@ -40,4 +40,11 @@ Completed and verified on 2026-10-29.
 
 ## Checkpoint 2.4 — Integration and finalization
 
-Pending. Includes authorized dashboard aggregates, cross-module tests, responsive browser acceptance, final documentation, and full quality commands.
+Completed and verified on 2026-10-29.
+
+- Dashboard reads a repeatable-read PostgreSQL snapshot with authorized project/task scope. Five real KPIs, all project statuses, allocated budgets by start month, recent project/task activity, upcoming deadlines, personal assignments, and workload replace the initial empty contract. Expense tracking is explicitly unavailable; no expense totals are fabricated.
+- Core mutations invalidate dashboard queries. Browser checks confirm the KPI updates after a project mutation without a page reload. The status ring uses actual counts. Activity is scrollable to keep the dashboard compact; currency axes use compact labels while tooltips and totals retain cents.
+- Added cross-module tests for dashboard authorization and changes, task/session persistence across an API restart, and concurrent member removal versus new assignment. Self-account edits refresh the cached current user.
+- Final verification: 42 backend tests passed; all 16 browser cases passed in the full four-viewport run. After the final axis-label adjustment, all four project/dashboard browser cases passed again. Lint, typecheck, formatting, production build, application migration status, and preservation comparison passed. Desktop and mobile screenshots reviewed.
+- On session resumption PostgreSQL was stopped; the existing cluster restarted and recovered successfully without a reset. The browser launcher initially reported the unavailable service; its rerun passed after startup. Original users, credentials, environment, login source, logo, and design tokens remain unchanged.
+- Updated README, architecture, database/testing guidance, API/permission/completion rules, and `docs/PHASE2_REPORT.md`. All Phase 2 checkpoints are complete. No Phase 3 features, deployment, or remote push performed.

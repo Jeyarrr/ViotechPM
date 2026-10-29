@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
@@ -30,6 +30,8 @@ function EmployeeEditor({
 }) {
   const roles = useLookup('roles'),
     departments = useLookup('departments');
+  const queryClient = useQueryClient();
+  const { data: currentUser } = useAuth();
   const save = useCoreMutation((values: Record<string, string>) =>
     employee ? api.patch(`/employees/${employee.id}`, values) : api.post('/employees', values),
   );
@@ -99,6 +101,8 @@ function EmployeeEditor({
       onClose={onClose}
       onSave={async (values) => {
         await save.mutateAsync(values);
+        if (employee?.id === currentUser?.id)
+          await queryClient.invalidateQueries({ queryKey: ['auth'] });
         onSaved();
       }}
     />
@@ -106,6 +110,7 @@ function EmployeeEditor({
 }
 export function TeamPage() {
   const { data: user } = useAuth();
+  const queryClient = useQueryClient();
   const admin = user?.role.key === 'super_admin';
   const [filters, setFilters] = useState({
     q: '',
@@ -314,6 +319,8 @@ export function TeamPage() {
           onClose={() => setConfirm(null)}
           onConfirm={async () => {
             await status.mutateAsync(confirm);
+            if (confirm.id === user?.id)
+              await queryClient.invalidateQueries({ queryKey: ['auth'] });
             setNotice('Account status updated.');
           }}
         />

@@ -22,6 +22,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { api } from '@/services/api';
 import { currency } from '@/lib/utils';
 import type { OverviewData } from '@/types/api';
+import { taskLabel } from '@/lib/tasks';
 
 const BudgetPlot = lazy(() => import('@/components/dashboard/budget-plot'));
 
@@ -45,8 +46,8 @@ function BudgetChart({ data, code }: { data: OverviewData['budgetSeries']; code:
         </div>
         <div className="chart-empty-message">
           <Wallet size={22} strokeWidth={1.4} />
-          <strong>Your financial picture starts here</strong>
-          <span>Budget and expense data will appear with your projects.</span>
+          <strong>Your project budgets start here</strong>
+          <span>Recorded project budgets will appear here.</span>
         </div>
         <div className="chart-axis" aria-hidden="true">
           <span>Jan</span>
@@ -89,6 +90,16 @@ export function OverviewPage() {
   if (overview.isError)
     return <ErrorState message={overview.error.message} retry={() => void overview.refetch()} />;
   const data = overview.data;
+  const statuses = [
+    { key: 'PLANNING', label: 'Planning', color: 'var(--text-muted)' },
+    { key: 'ACTIVE', label: 'Active', color: 'var(--primary)' },
+    { key: 'ON_HOLD', label: 'On hold', color: 'var(--crimson)' },
+    { key: 'COMPLETED', label: 'Completed', color: 'var(--text-secondary)' },
+    { key: 'CANCELLED', label: 'Cancelled', color: 'var(--input-border)' },
+  ].map((status) => ({
+    ...status,
+    count: data.projectStatus.find((row) => row.status === status.key)?.count ?? 0,
+  }));
   const date = new Intl.DateTimeFormat('en-PH', {
     weekday: 'short',
     month: 'short',
@@ -203,7 +214,12 @@ export function OverviewPage() {
             <ul className="data-list">
               {data.recentActivity.map((item) => (
                 <li key={item.id}>
-                  {item.description}
+                  <span>
+                    <Link className="record-link" to={`/projects/${item.projectId}`}>
+                      {item.description}
+                    </Link>
+                    <small>{item.actorName}</small>
+                  </span>
                   <time>{new Date(item.occurredAt).toLocaleDateString('en-PH')}</time>
                 </li>
               ))}
@@ -219,8 +235,8 @@ export function OverviewPage() {
         <Card className="budget-card">
           <CardHeader>
             <div>
-              <CardTitle>Budget vs expenses</CardTitle>
-              <p>A clearer picture of project finances</p>
+              <CardTitle>Project budgets</CardTitle>
+              <p>Allocated budget by project start month</p>
             </div>
             <span className="subtle-pill">{data.currency}</span>
           </CardHeader>
@@ -235,16 +251,13 @@ export function OverviewPage() {
             <div>
               <span>
                 <i className="legend-muted" />
-                Total expenses
+                Expense tracking
               </span>
-              <strong>
-                {currency(
-                  data.budgetSeries.reduce((sum, row) => sum + row.expenses, 0),
-                  data.currency,
-                )}
-              </strong>
+              <strong className="expense-unavailable">Not available yet</strong>
             </div>
-            <span className="no-data-label">No financial data yet</span>
+            {!data.budgetSeries.length && (
+              <span className="no-data-label">No recorded budgets</span>
+            )}
           </div>
           <BudgetChart data={data.budgetSeries} code={data.currency} />
         </Card>
@@ -263,7 +276,10 @@ export function OverviewPage() {
               {data.teamWorkload.map((item) => (
                 <li key={item.userId}>
                   {item.name}
-                  <span>{item.assignedTasks} assigned</span>
+                  <span>
+                    {item.assignedTasks - item.completedTasks} open
+                    <small>{item.completedTasks} completed</small>
+                  </span>
                 </li>
               ))}
             </ul>
@@ -289,7 +305,12 @@ export function OverviewPage() {
             <ul className="data-list">
               {data.deadlines.map((item) => (
                 <li key={item.id}>
-                  {item.title}
+                  <span>
+                    <Link className="record-link" to={`/tasks?projectId=${item.projectId}`}>
+                      {item.title}
+                    </Link>
+                    <small>{item.projectName}</small>
+                  </span>
                   <time>{new Date(item.dueAt).toLocaleDateString('en-PH')}</time>
                 </li>
               ))}
@@ -298,7 +319,7 @@ export function OverviewPage() {
             <EmptyState
               icon={CalendarDays}
               title="A clear calendar"
-              description="Upcoming tasks and milestones will appear here once scheduled."
+              description="Upcoming task deadlines will appear here once scheduled."
             />
           )}
         </Card>
@@ -312,7 +333,12 @@ export function OverviewPage() {
           </CardHeader>
           <div className="status-breakdown">
             <div className="status-visual">
-              <svg viewBox="0 0 200 200" className="status-ring" aria-hidden="true">
+              <svg
+                viewBox="0 0 200 200"
+                className="status-ring"
+                role="img"
+                aria-label={statuses.map((s) => `${s.label}: ${s.count}`).join(', ')}
+              >
                 <circle
                   cx="100"
                   cy="100"
@@ -321,17 +347,28 @@ export function OverviewPage() {
                   stroke="currentColor"
                   strokeWidth="16"
                 />
-                <circle
-                  cx="100"
-                  cy="100"
-                  r="79"
-                  fill="none"
-                  stroke="var(--primary)"
-                  strokeOpacity=".8"
-                  strokeWidth="16"
-                  strokeDasharray="3 494"
-                  transform="rotate(-90 100 100)"
-                />
+                {data.metrics.totalProjects > 0 &&
+                  statuses.map((status, index) => {
+                    const circumference = 2 * Math.PI * 79;
+                    const length = (circumference * status.count) / data.metrics.totalProjects;
+                    const offset =
+                      (circumference * statuses.slice(0, index).reduce((n, s) => n + s.count, 0)) /
+                      data.metrics.totalProjects;
+                    return (
+                      <circle
+                        key={status.key}
+                        cx="100"
+                        cy="100"
+                        r="79"
+                        fill="none"
+                        stroke={status.color}
+                        strokeWidth="16"
+                        strokeDasharray={`${length} ${circumference - length}`}
+                        strokeDashoffset={-offset}
+                        transform="rotate(-90 100 100)"
+                      />
+                    );
+                  })}
               </svg>
               <div className="ring-label">
                 <strong>{data.metrics.totalProjects}</strong>
@@ -339,26 +376,57 @@ export function OverviewPage() {
               </div>
             </div>
             <div className="status-legend">
-              {[
-                { label: 'In progress', color: 'legend-primary' },
-                { label: 'Completed', color: 'legend-neutral' },
-                { label: 'On hold', color: 'legend-crimson' },
-                { label: 'Not started', color: 'legend-muted' },
-              ].map((status) => (
+              {statuses.map((status) => (
                 <div key={status.label}>
-                  <span className={status.color} />
+                  <span style={{ background: status.color }} />
                   <span>{status.label}</span>
-                  <strong>
-                    {data.projectStatus.find((row) => row.status === status.label)?.count ?? 0}
-                  </strong>
+                  <strong>{status.count}</strong>
                 </div>
               ))}
             </div>
           </div>
           <div className="card-footnote">
             <Circle size={11} />
-            No projects yet. Your portfolio starts here.
+            {data.metrics.totalProjects
+              ? 'Current authorized projects. Archived projects excluded.'
+              : 'No projects yet. Your portfolio starts here.'}
           </div>
+        </Card>
+        <Card className="my-tasks-card">
+          <CardHeader>
+            <div>
+              <CardTitle>My assigned tasks</CardTitle>
+              <p>Your next responsibilities, ordered by due date</p>
+            </div>
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/tasks">
+                View all <ArrowRight size={14} />
+              </Link>
+            </Button>
+          </CardHeader>
+          {data.myTasks.length ? (
+            <ul className="data-list">
+              {data.myTasks.map((task) => (
+                <li key={task.id}>
+                  <span>
+                    <Link className="record-link" to={`/tasks?projectId=${task.projectId}`}>
+                      {task.title}
+                    </Link>
+                    <small>
+                      {task.projectName} · {taskLabel(task.status)}
+                    </small>
+                  </span>
+                  <time>{new Date(task.dueAt).toLocaleDateString('en-PH')}</time>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState
+              icon={ListTodo}
+              title="No open tasks assigned"
+              description="Your assigned work will appear here when tasks are added."
+            />
+          )}
         </Card>
       </div>
       <div className="dashboard-note">

@@ -13,11 +13,12 @@ export function initials(name: string) {
     .join('')
     .toUpperCase();
 }
-export function currency(value: number | string, code = 'PHP') {
+export function currency(value: number | string, code = 'PHP', compact = false) {
   return new Intl.NumberFormat('en-PH', {
     style: 'currency',
     currency: code,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    notation: compact ? 'compact' : 'standard',
+    minimumFractionDigits: compact ? 0 : 2,
+    maximumFractionDigits: compact ? 1 : 2,
   }).format(Number(value));
 }

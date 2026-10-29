@@ -69,3 +69,14 @@ Progress is completed non-archived tasks / all non-archived tasks × 100, rounde
 Task completion timestamps are set by the server, preserved on edits while completed, and cleared when reopened. Adding/reopening unfinished work in a completed project automatically changes the project to Active and clears actual completion, with an audit event. Archiving its last current task also reopens it, preserving the rule that a completed project cannot have zero tasks. Cancelled and On Hold projects permit task cleanup and edits without automatically changing those project statuses. Archived projects block task/team edits until restored.
 
 Client, project, and task archive operations retain records, foreign keys, and audits. Project restoration restores access to retained memberships and tasks; it does not unarchive individually archived tasks. Task archive is final in this phase (no task restore endpoint was requested).
+
+## Dashboard — checkpoint 2.4
+
+`GET /api/dashboard` reads a consistent PostgreSQL snapshot using a repeatable-read transaction. Projects are restricted to the current user's authorization and exclude archives. Task counts also exclude individually archived tasks and apply the task-read scope (Employee sees own tasks only).
+
+- KPIs: total projects, Active projects, Completed projects, unfinished tasks, and the database sum of recorded project budgets. Unset budgets contribute no amount. Currency is PHP; chart/JSON amounts are numbers for presentation while persisted budgets remain Decimal.
+- Distribution includes Planning, Active, On Hold, Completed, and Cancelled with actual counts. An empty workspace has zero counts.
+- Budget series groups allocated budgets by the project's start month (`YYYY-MM`). It is an allocation view, not spending or cash flow. No expense field or fabricated expense total is returned.
+- Latest ten authorized project/task audit events, next eight unfinished task deadlines from today, and the signed-in user's next eight unfinished tasks (including overdue work) link back to authorized records.
+- Workload shows up to eight assignees, ordered by open-task count; includes an Unassigned bucket. It reflects current tasks within authorized projects, not organization-wide capacity. Completed and total counts are real records.
+- Core UI mutations invalidate both `core` and `dashboard` query keys after a successful server response. Browser acceptance checks navigation back to the dashboard after project creation/editing without relying on a page reload.

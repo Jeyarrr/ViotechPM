@@ -11,6 +11,8 @@ test('project create, validation, detail, update, archive, and restore', async (
   await page.getByLabel('Password', { exact: true }).fill(process.env.BOOTSTRAP_ADMIN_PASSWORD!);
   await page.getByRole('button', { name: 'Sign in to workspace' }).click();
   await expect(page).toHaveURL('/');
+  const baseline = (await (await page.request.get('/api/dashboard')).json()).data.metrics
+    .totalProjects as number;
   const token = (await (await page.request.get('http://localhost:4001/api/auth/csrf')).json()).data
     .csrfToken as string;
   const headers = { Origin: 'http://localhost:5174', 'X-CSRF-Token': token };
@@ -53,6 +55,25 @@ test('project create, validation, detail, update, archive, and restore', async (
   await page.getByRole('dialog').getByLabel('Status', { exact: false }).selectOption('ACTIVE');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('dialog')).not.toBeVisible();
+  const detailUrl = page.url();
+  if ((page.viewportSize()?.width ?? 1440) < 1024)
+    await page.getByRole('button', { name: 'Open navigation' }).click();
+  await page.getByRole('link', { name: 'Overview', exact: true }).filter({ visible: true }).click();
+  await expect(
+    page.locator('.kpi-card').filter({ hasText: 'Total Projects' }).locator('.kpi-value'),
+  ).toHaveText(String(baseline + 1));
+  await expect(page.getByText('Project budgets', { exact: true })).toBeVisible();
+  await expect(page.getByText('Not available yet', { exact: true })).toBeVisible();
+  await expect(page.locator('.budget-live .recharts-surface')).toBeVisible();
+  mkdirSync('.local/screenshots', { recursive: true });
+  await page.screenshot({
+    path: `.local/screenshots/dashboard-populated-${info.project.name}.png`,
+    fullPage: true,
+  });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+  await page.goto(detailUrl);
   await page.reload();
   await expect(page.getByText('Persisted project description.')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
