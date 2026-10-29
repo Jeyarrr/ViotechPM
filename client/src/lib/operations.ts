@@ -12,3 +12,10 @@ export const operationLabel = (value: string) =>
     .toLowerCase()
     .replaceAll('_', ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase());
+export const businessDate = () =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Manila',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());

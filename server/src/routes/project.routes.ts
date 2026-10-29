@@ -15,12 +15,31 @@ import {
 import { memberRoutes, memberSelect } from './member.routes.js';
 import { taskScope, taskInclude, today } from '../services/task.service.js';
 import { approvalPolicyRoutes } from './approval.routes.js';
+import {
+  financialProjectScope,
+  projectBudgetSummary,
+  validateBudgetChange,
+} from '../services/expense.service.js';
+import { notFound } from '../services/core.service.js';
 
 export function projectRoutes(db: PrismaClient) {
   const router = Router();
   router.use(requirePermission('projects:read'));
   router.use('/:id/members', memberRoutes(db));
   router.use('/:id/approval-policy', approvalPolicyRoutes(db));
+  router.get('/:id/budget-summary', requirePermission('expenses:read'), async (req, res) => {
+    const id = idSchema.parse(req.params.id);
+    const data = await db.$transaction(
+      async (tx) => {
+        const project =
+          (await tx.project.findFirst({ where: { id, ...financialProjectScope(req.user!) } })) ??
+          notFound();
+        return projectBudgetSummary(tx, project);
+      },
+      { isolationLevel: 'RepeatableRead' },
+    );
+    res.json({ data });
+  });
   router.get('/', async (req, res) => {
     const q = projectListSchema.parse(req.query);
     const where: Prisma.ProjectWhereInput = {
@@ -127,6 +146,7 @@ export function projectRoutes(db: PrismaClient) {
       const before = await accessibleProject(tx, id, req.user!, true);
       if (before.archivedAt) conflict('Restore this project before editing.');
       await validateProject(tx, { ...before, ...input }, req.user!, before);
+      if ('budget' in input) await validateBudgetChange(tx, id, input.budget ?? null);
       const item = await tx.project.update({
         where: { id },
         data: {
@@ -183,6 +203,11 @@ export function projectRoutes(db: PrismaClient) {
         await audit(tx, req.user!.id, 'project.status_changed', 'Project', id, {
           before: before.status,
           after: item.status,
+        });
+      if (before.budget?.toString() !== item.budget?.toString())
+        await audit(tx, req.user!.id, 'project.budget_changed', 'Project', id, {
+          before: before.budget?.toFixed(2) ?? null,
+          after: item.budget?.toFixed(2) ?? null,
         });
       return item;
     });

@@ -60,6 +60,21 @@ export interface TransactionRecord {
   canSubmit?: boolean;
   canCancel?: boolean;
   canReview?: boolean;
+  canPostExpense?: boolean;
+  expense?: {
+    id: string;
+    amount: string;
+    expenseDate: string;
+    category: string;
+    kind: string;
+    recordedBy: Lookup;
+    reversedBy: {
+      id: string;
+      amount: string;
+      expenseDate: string;
+      reversalReason: string | null;
+    } | null;
+  } | null;
   activity?: { id: string; action: string; timestamp: string; actor: { name: string } | null }[];
 }
 export interface ApprovalPolicyRecord {

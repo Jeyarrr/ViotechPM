@@ -9,6 +9,17 @@ export const transactionInclude = {
   type: true,
   requester: { select: { id: true, name: true, email: true } },
   department: { select: { id: true, name: true } },
+  expense: {
+    select: {
+      id: true,
+      amount: true,
+      expenseDate: true,
+      category: true,
+      kind: true,
+      recordedBy: { select: { id: true, name: true } },
+      reversedBy: { select: { id: true, amount: true, expenseDate: true, reversalReason: true } },
+    },
+  },
 } as const;
 export const workflowInclude = {
   steps: {
@@ -63,7 +74,12 @@ export function transactionWhere(
   };
 }
 export function transactionPermissions(
-  item: { requesterId: string; status: string; project: { archivedAt: Date | null } },
+  item: {
+    requesterId: string;
+    status: string;
+    project: { archivedAt: Date | null; managerId: string };
+    expense?: { reversedBy: unknown | null } | null;
+  },
   user: PublicUser,
 ) {
   const editable =
@@ -73,8 +89,15 @@ export function transactionPermissions(
   return {
     canEdit: editable,
     canSubmit: editable,
+    canPostExpense:
+      !item.expense &&
+      item.status === 'APPROVED' &&
+      !item.project.archivedAt &&
+      (isAdmin(user) ||
+        (user.role.key === 'project_manager' && item.project.managerId === user.id)),
     canCancel: isAdmin(user)
-      ? !['REJECTED', 'CANCELLED'].includes(item.status)
+      ? !['REJECTED', 'CANCELLED'].includes(item.status) &&
+        (!item.expense || !!item.expense.reversedBy)
       : item.requesterId === user.id &&
         ['DRAFT', 'RETURNED_FOR_REVISION', 'SUBMITTED', 'UNDER_REVIEW'].includes(item.status),
   };

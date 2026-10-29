@@ -92,7 +92,7 @@ export const navigation: { label: string; items: NavigationItem[] }[] = [
           'Review project requests and keep decisions clear, accountable, and organized.',
       },
       {
-        title: 'Expenses',
+        title: 'Budget & Expenses',
         path: '/expenses',
         icon: Wallet,
         permission: 'expenses:read',

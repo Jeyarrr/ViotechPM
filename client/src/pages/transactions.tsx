@@ -18,6 +18,7 @@ import {
   Notice,
 } from '@/components/shared/crud';
 import { TransactionEditor, TransactionTypeManager } from '@/components/shared/transaction-editor';
+import { PostExpenseDialog, ReverseExpenseDialog } from '@/components/shared/expense-controls';
 import {
   ApprovalDecisionDialog,
   ApprovalPolicyEditor,
@@ -316,7 +317,9 @@ export function TransactionDetailsPage() {
     [decision, setDecision] = useState<'approve' | 'reject' | 'return' | null>(null),
     [reassign, setReassign] = useState<ApprovalStep | null>(null),
     [notice, setNotice] = useState(''),
-    [historyPage, setHistoryPage] = useState(1);
+    [historyPage, setHistoryPage] = useState(1),
+    [postingExpense, setPostingExpense] = useState(false),
+    [reversingExpense, setReversingExpense] = useState(false);
   const query = useQuery({
     queryKey: ['core', 'transaction', id],
     queryFn: () => api.get<TransactionRecord>(`/transactions/${id}`),
@@ -457,6 +460,57 @@ export function TransactionDetailsPage() {
           </p>
         </Card>
       </div>
+      <Card className="detail-panel">
+        <h2 className="card-title">Related expense</h2>
+        {t.expense ? (
+          <>
+            <dl className="record-details">
+              <div>
+                <dt>Posted amount</dt>
+                <dd>{currency(t.expense.amount)}</dd>
+              </div>
+              <div>
+                <dt>Expense date</dt>
+                <dd>{t.expense.expenseDate.slice(0, 10)}</dd>
+              </div>
+              <div>
+                <dt>Category</dt>
+                <dd>{t.expense.category}</dd>
+              </div>
+              <div>
+                <dt>Recorded by</dt>
+                <dd>{t.expense.recordedBy.name}</dd>
+              </div>
+              <div>
+                <dt>Status</dt>
+                <dd>{t.expense.reversedBy ? 'Reversed — original preserved' : 'Posted'}</dd>
+              </div>
+              {t.expense.reversedBy && (
+                <div>
+                  <dt>Reversal reason</dt>
+                  <dd>{t.expense.reversedBy.reversalReason}</dd>
+                </div>
+              )}
+            </dl>
+            {user?.role.key === 'super_admin' && !t.expense.reversedBy && (
+              <Button variant="outline" size="sm" onClick={() => setReversingExpense(true)}>
+                Reverse expense
+              </Button>
+            )}
+          </>
+        ) : (
+          <>
+            <p className="field-hint">
+              {t.status === 'APPROVED'
+                ? 'Approved and awaiting controlled expense posting.'
+                : 'This request has no posted expense. Pending and rejected requests do not affect spending.'}
+            </p>
+            {t.canPostExpense && (
+              <Button onClick={() => setPostingExpense(true)}>Post approved expense</Button>
+            )}
+          </>
+        )}
+      </Card>
       <Card className="detail-panel">
         <h2 className="card-title">Approval history</h2>
         {history.isError ? (
@@ -606,6 +660,20 @@ export function TransactionDetailsPage() {
           projectId={t.projectId}
           onClose={() => setPolicyOpen(false)}
           onSaved={() => setNotice('Approval policy saved for future submissions.')}
+        />
+      )}
+      {postingExpense && (
+        <PostExpenseDialog
+          transaction={t}
+          onClose={() => setPostingExpense(false)}
+          onSaved={() => setNotice('Approved expense posted.')}
+        />
+      )}
+      {reversingExpense && t.expense && (
+        <ReverseExpenseDialog
+          expense={t.expense}
+          onClose={() => setReversingExpense(false)}
+          onSaved={() => setNotice('Reversal recorded. Original expense preserved.')}
         />
       )}
       {reassign && (

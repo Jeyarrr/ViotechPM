@@ -22,6 +22,7 @@ import { taskRoutes } from './routes/task.routes.js';
 import { milestoneRoutes } from './routes/milestone.routes.js';
 import { transactionRoutes } from './routes/transaction.routes.js';
 import { approvalRoutes } from './routes/approval.routes.js';
+import { expenseRoutes } from './routes/expense.routes.js';
 
 export async function createApp(config: AppConfig, db: PrismaClient) {
   const app = express();
@@ -100,6 +101,7 @@ export async function createApp(config: AppConfig, db: PrismaClient) {
   app.use('/api/transactions', requireAuth(auth), transactionRoutes(db));
   app.use('/api/approvals', requireAuth(auth), approvalRoutes(db));
   app.use('/api/transaction-types', requireAuth(auth), transactionTypeRoutes(db));
+  app.use('/api/expenses', requireAuth(auth), expenseRoutes(db));
   app.get(
     '/api/dashboard',
     requireAuth(auth),

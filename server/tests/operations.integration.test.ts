@@ -153,13 +153,14 @@ beforeAll(async () => {
     ['developer', 'developer'],
     ['employee', 'employee'],
     ['outsider', 'it_support'],
+    ['otherManager', 'project_manager'],
   ]) {
     const role = await db.role.findUniqueOrThrow({ where: { key: roleKey! } });
     ids[key!] = (
       await db.user.create({
         data: {
           name: `Operations ${key}`,
-          email: `ops-${key}-${runId}@test.viotech.local`,
+          email: `ops-${key}-${runId}@test.viotech.local`.toLowerCase(),
           passwordHash: hash,
           roleId: role.id,
         },
@@ -181,6 +182,8 @@ afterAll(async () => {
   }
   const userIds = Object.values(ids),
     projectWhere = { createdById: ids.admin };
+  await db.expense.deleteMany({ where: { project: projectWhere, kind: 'REVERSAL' } });
+  await db.expense.deleteMany({ where: { project: projectWhere } });
   await db.approvalDecision.deleteMany({
     where: { step: { workflow: { transaction: { project: projectWhere } } } },
   });
@@ -199,6 +202,315 @@ afterAll(async () => {
   await db.auditLog.deleteMany({ where: { actorId: { in: userIds } } });
   await db.user.deleteMany({ where: { id: { in: userIds } } });
   await db.$disconnect();
+});
+
+describe('Budget and expense integrity', () => {
+  async function approved(input: object) {
+    const created = await createRequest(input),
+      manager = await login('manager'),
+      reviewer = await login('reviewer');
+    expect(
+      (await write(created.agent, 'post', `/api/transactions/${created.item.id}/submit`)).status,
+    ).toBe(200);
+    expect((await write(manager, 'post', `/api/approvals/${created.item.id}/approve`)).status).toBe(
+      200,
+    );
+    expect(
+      (await write(reviewer, 'post', `/api/approvals/${created.item.id}/approve`)).status,
+    ).toBe(200);
+    return created;
+  }
+  it('posts approved decimal amounts and calculates exact cents, remaining allocation, and utilization', async () => {
+    const { project, input } = await fixture();
+    expect(
+      (await write(admin, 'patch', `/api/projects/${project.id}`, { budget: '1.00' })).status,
+    ).toBe(200);
+    const first = await approved({ ...input, requestedAmount: '0.10' }),
+      second = await approved({ ...input, requestedAmount: '0.20' });
+    expect(
+      (await write(admin, 'post', '/api/expenses', { transactionId: first.item.id })).status,
+    ).toBe(201);
+    const manager = await login('manager');
+    expect(
+      (await write(manager, 'post', '/api/expenses', { transactionId: second.item.id })).status,
+    ).toBe(201);
+    const summary = (await admin.get(`/api/projects/${project.id}/budget-summary`)).body.data;
+    expect(summary).toMatchObject({
+      budget: '1.00',
+      totalExpenses: '0.30',
+      remainingBudget: '0.70',
+      utilization: '30.00',
+    });
+    const global = (await admin.get(`/api/expenses/summary?projectId=${project.id}`)).body.data;
+    expect(global.totals).toMatchObject({
+      budget: '1.00',
+      totalExpenses: '0.30',
+      remainingBudget: '0.70',
+    });
+    expect(global.filteredExpenses).toBe('0.30');
+    const detail = (await first.agent.get(`/api/transactions/${first.item.id}`)).body.data;
+    expect(detail.expense).not.toBeNull();
+    expect(detail.canPostExpense).toBe(false);
+    expect(await db.expense.count({ where: { projectId: project.id } })).toBe(2);
+  });
+  it('keeps pending, rejected, and approved-unposted requests out of spending and rejects forged postings', async () => {
+    const { project, input } = await fixture(),
+      draft = await createRequest(input);
+    expect(
+      (await write(admin, 'post', '/api/expenses', { transactionId: draft.item.id })).status,
+    ).toBe(409);
+    expect(
+      (await write(draft.agent, 'post', `/api/transactions/${draft.item.id}/submit`)).status,
+    ).toBe(200);
+    expect(
+      (await admin.get(`/api/projects/${project.id}/budget-summary`)).body.data.totalExpenses,
+    ).toBe('0.00');
+    const manager = await login('manager');
+    expect(
+      (
+        await write(manager, 'post', `/api/approvals/${draft.item.id}/reject`, {
+          comment: 'Not authorized for posting',
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (await write(admin, 'post', '/api/expenses', { transactionId: draft.item.id })).status,
+    ).toBe(409);
+    const ready = await approved(input);
+    expect(
+      (await admin.get(`/api/projects/${project.id}/budget-summary`)).body.data.totalExpenses,
+    ).toBe('0.00');
+    expect(
+      (await write(ready.agent, 'post', '/api/expenses', { transactionId: ready.item.id })).status,
+    ).toBe(403);
+    expect(
+      (await write(admin, 'post', '/api/expenses', { transactionId: ready.item.id, amount: '1' }))
+        .status,
+    ).toBe(422);
+    expect(await db.expense.count({ where: { projectId: project.id } })).toBe(0);
+  });
+  it('serializes duplicate posting attempts and records exactly one expense and posting audit', async () => {
+    const { input } = await fixture(),
+      ready = await approved(input);
+    const token = (await admin.get('/api/auth/csrf')).body.data.csrfToken as string;
+    const results = await Promise.all(
+      [0, 1].map(() =>
+        admin
+          .post('/api/expenses')
+          .set('Origin', config.CLIENT_ORIGIN)
+          .set('X-CSRF-Token', token)
+          .send({ transactionId: ready.item.id }),
+      ),
+    );
+    expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
+    expect(await db.expense.count({ where: { transactionId: ready.item.id } })).toBe(1);
+    const expense = await db.expense.findUniqueOrThrow({ where: { transactionId: ready.item.id } });
+    expect(
+      await db.auditLog.count({ where: { entityId: expense.id, action: 'expense.posted' } }),
+    ).toBe(1);
+  });
+  it('blocks competing overruns and prevents budget reduction beneath posted spending', async () => {
+    const { project, input } = await fixture();
+    expect(
+      (await write(admin, 'patch', `/api/projects/${project.id}`, { budget: '100.00' })).status,
+    ).toBe(200);
+    const first = await approved({ ...input, requestedAmount: '70.00' }),
+      second = await approved({ ...input, requestedAmount: '60.00' });
+    const token = (await admin.get('/api/auth/csrf')).body.data.csrfToken as string;
+    const results = await Promise.all(
+      [first, second].map(({ item }) =>
+        admin
+          .post('/api/expenses')
+          .set('Origin', config.CLIENT_ORIGIN)
+          .set('X-CSRF-Token', token)
+          .send({ transactionId: item.id }),
+      ),
+    );
+    expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
+    const sum = (
+      await db.expense.aggregate({ where: { projectId: project.id }, _sum: { amount: true } })
+    )._sum.amount!;
+    expect(sum.lessThanOrEqualTo('100.00')).toBe(true);
+    expect(
+      (await write(admin, 'patch', `/api/projects/${project.id}`, { budget: '1.00' })).status,
+    ).toBe(409);
+    expect(
+      (await write(admin, 'patch', `/api/projects/${project.id}`, { budget: null })).status,
+    ).toBe(409);
+    expect(
+      (await write(admin, 'patch', `/api/projects/${project.id}`, { budget: '200.00' })).status,
+    ).toBe(200);
+    expect(
+      await db.auditLog.count({
+        where: { entityId: project.id, action: 'project.budget_changed' },
+      }),
+    ).toBe(2);
+  });
+  it('records exact negative reversals without changing original rows and controls approved cancellation', async () => {
+    const { project, input } = await fixture(),
+      ready = await approved({ ...input, requestedAmount: '12.34' });
+    const posted = await write(admin, 'post', '/api/expenses', { transactionId: ready.item.id });
+    expect(posted.status).toBe(201);
+    const id = posted.body.data.id as string;
+    const before = await db.expense.findUniqueOrThrow({ where: { id } });
+    expect(
+      (
+        await write(admin, 'post', `/api/transactions/${ready.item.id}/cancel`, {
+          comment: 'Must reverse spending first',
+        })
+      ).status,
+    ).toBe(409);
+    const manager = await login('manager');
+    expect(
+      (await write(manager, 'post', `/api/expenses/${id}/reverse`, { comment: 'Not authorized' }))
+        .status,
+    ).toBe(403);
+    expect((await write(admin, 'patch', `/api/expenses/${id}`, { amount: '1.00' })).status).toBe(
+      404,
+    );
+    expect((await write(admin, 'post', `/api/expenses/${id}/reverse`)).status).toBe(422);
+    const reversed = await write(admin, 'post', `/api/expenses/${id}/reverse`, {
+      comment: 'Incorrect purchase request; reverse and resubmit.',
+    });
+    expect(reversed.status).toBe(201);
+    expect(reversed.body.data.amount).toBe('-12.34');
+    expect(reversed.body.data.reversalOfId).toBe(id);
+    const after = await db.expense.findUniqueOrThrow({ where: { id } });
+    expect(after.amount.toFixed(2)).toBe('12.34');
+    expect(after.updatedAt).toEqual(before.updatedAt);
+    expect(
+      (await admin.get(`/api/projects/${project.id}/budget-summary`)).body.data.totalExpenses,
+    ).toBe('0.00');
+    expect(
+      (await write(admin, 'post', `/api/expenses/${id}/reverse`, { comment: 'Duplicate attempt' }))
+        .status,
+    ).toBe(409);
+    expect(
+      (
+        await write(admin, 'post', `/api/expenses/${reversed.body.data.id}/reverse`, {
+          comment: 'Cannot reverse reversal',
+        })
+      ).status,
+    ).toBe(409);
+    expect(
+      (await write(admin, 'post', '/api/expenses', { transactionId: ready.item.id })).status,
+    ).toBe(409);
+    expect(
+      (
+        await write(admin, 'post', `/api/transactions/${ready.item.id}/cancel`, {
+          comment: 'Cancelled after recorded reversal.',
+        })
+      ).body.data.status,
+    ).toBe('CANCELLED');
+    expect(await db.expense.count({ where: { projectId: project.id } })).toBe(2);
+    expect(
+      await db.auditLog.count({
+        where: { entityId: reversed.body.data.id, action: 'expense.reversed' },
+      }),
+    ).toBe(1);
+  });
+  it('handles missing/zero budgets safely and rejects future-dated expenses', async () => {
+    const { project, input } = await fixture(),
+      ready = await approved(input);
+    expect(
+      (await write(admin, 'patch', `/api/projects/${project.id}`, { budget: null })).status,
+    ).toBe(200);
+    expect((await admin.get(`/api/projects/${project.id}/budget-summary`)).body.data).toMatchObject(
+      { budget: null, totalExpenses: '0.00', remainingBudget: null, utilization: null },
+    );
+    expect(
+      (await write(admin, 'post', '/api/expenses', { transactionId: ready.item.id })).status,
+    ).toBe(409);
+    expect(
+      (await write(admin, 'patch', `/api/projects/${project.id}`, { budget: '0' })).status,
+    ).toBe(200);
+    expect(
+      (await admin.get(`/api/projects/${project.id}/budget-summary`)).body.data.utilization,
+    ).toBeNull();
+    expect(
+      (await write(admin, 'post', '/api/expenses', { transactionId: ready.item.id })).status,
+    ).toBe(409);
+    expect(
+      (await write(admin, 'patch', `/api/projects/${project.id}`, { budget: '1000.00' })).status,
+    ).toBe(200);
+    expect(
+      (
+        await write(admin, 'post', '/api/expenses', {
+          transactionId: ready.item.id,
+          expenseDate: '2099-01-01',
+        })
+      ).status,
+    ).toBe(422);
+    expect(await db.expense.count({ where: { projectId: project.id } })).toBe(0);
+  });
+  it('scopes financial records to project management and filters ledger/summary history consistently', async () => {
+    const { project, input } = await fixture(),
+      ready = await approved(input),
+      posted = await write(admin, 'post', '/api/expenses', { transactionId: ready.item.id });
+    expect(posted.status).toBe(201);
+    const other = await login('otherManager'),
+      manager = await login('manager');
+    await other.get(`/api/expenses/${posted.body.data.id}`).expect(404);
+    await other.get(`/api/projects/${project.id}/budget-summary`).expect(404);
+    expect((await other.get(`/api/expenses?projectId=${project.id}`)).body.data.total).toBe(0);
+    expect(
+      (await write(other, 'post', '/api/expenses', { transactionId: ready.item.id })).status,
+    ).toBe(404);
+    await ready.agent.get('/api/expenses').expect(403);
+    await ready.agent.get(`/api/projects/${project.id}/budget-summary`).expect(403);
+    expect((await ready.agent.get(`/api/transactions/${ready.item.id}`)).body.data.expense.id).toBe(
+      posted.body.data.id,
+    );
+    const q = `projectId=${project.id}&clientId=${project.clientId}&q=${ready.item.reference}&dateFrom=2026-10-01&dateTo=2026-10-31&pageSize=1`;
+    expect((await manager.get(`/api/expenses?${q}`)).body.data.total).toBe(1);
+    expect((await manager.get(`/api/expenses/summary?${q}`)).body.data.filteredExpenses).toBe(
+      '100.25',
+    );
+    expect((await write(admin, 'delete', `/api/projects/${project.id}`)).status).toBe(200);
+    expect(
+      (await manager.get(`/api/expenses?projectId=${project.id}&projectState=current`)).body.data
+        .total,
+    ).toBe(0);
+    expect(
+      (await manager.get(`/api/expenses?projectId=${project.id}&projectState=archived`)).body.data
+        .total,
+    ).toBe(1);
+  });
+  it('enforces ledger sign/reference and non-null reversal-reason constraints in PostgreSQL', async () => {
+    const { project, input } = await fixture(),
+      ready = await approved(input),
+      posted = await write(admin, 'post', '/api/expenses', { transactionId: ready.item.id });
+    expect(posted.status).toBe(201);
+    await expect(
+      db.expense.create({
+        data: {
+          projectId: project.id,
+          category: 'Other',
+          description: 'Invalid reversal',
+          amount: '-1',
+          expenseDate: new Date('2026-10-29'),
+          kind: 'REVERSAL',
+          recordedById: ids.admin!,
+          reversalOfId: posted.body.data.id,
+        },
+      }),
+    ).rejects.toThrow();
+    await expect(
+      db.expense.create({
+        data: {
+          projectId: project.id,
+          category: 'Other',
+          description: 'Invalid posting',
+          amount: '-1',
+          expenseDate: new Date('2026-10-29'),
+          kind: 'POSTING',
+          recordedById: ids.admin!,
+          transactionId: ready.item.id,
+        },
+      }),
+    ).rejects.toThrow();
+    expect(await db.expense.count({ where: { projectId: project.id } })).toBe(1);
+  });
 });
 
 describe('Project transactions and approval workflows', () => {

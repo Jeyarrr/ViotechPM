@@ -14,6 +14,7 @@ import { ProjectEditor, CategoryManager } from '@/components/shared/project-edit
 import { ProjectTeam } from '@/components/shared/project-team';
 import { TaskEditor } from '@/components/shared/task-editor';
 import { ProjectMilestones } from '@/components/shared/project-milestones';
+import { ProjectFinance } from '@/components/shared/project-finance';
 import { ApprovalPolicyEditor } from '@/components/shared/approval-controls';
 import type { ProjectRecord, PageResult } from '@/types/core';
 
@@ -408,6 +409,7 @@ export function ProjectDetailsPage() {
         )}
       </Card>
       <ProjectMilestones project={project} />
+      <ProjectFinance project={project} />
       <Card className="detail-panel">
         <h2 className="card-title">Recent activity</h2>
         <ul className="data-list">

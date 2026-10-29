@@ -38,6 +38,16 @@ Default review requires **two independent reviewers**: the current project manag
 - `POST /api/approvals/:id/reassign`: Super Admin, with stepId, eligible independent approverId, and reason. Only Pending/Waiting stages can be reassigned; reviewers remain distinct. Completed decisions are never reassigned or edited. Reassign pending project reviews to a Super Admin before handing management to another employee. Pending assignments block account deactivation/role changes until safely reassigned.
 - Review actions lock the project and transaction in a consistent order. Unique workflow/sequence, workflow/reviewer, and decision/step constraints plus locks prevent duplicate or conflicting decisions. Request snapshots and decisions have no update/delete endpoints. Rejected self/unauthorized review attempts produce safe audit events outside the rolled-back mutation.
 
-## Expenses and reports
+## Budgets and expenses ? checkpoint 3.3
 
-Pending checkpoints 3.3/3.4. Approval alone does not yet post spending; expense functionality is not claimed complete at checkpoint 3.2.
+- `GET /api/expenses`, `GET /api/expenses/:id`, `GET /api/expenses/summary`, `GET /api/expenses/options`, `GET /api/expenses/postable`: Super Admin or actual managing Project Manager only. Ordinary requesters may see their transaction's related expense but cannot read project financial aggregates.
+- `POST /api/expenses`: only `transactionId` and optional `expenseDate`. Requires a fully approved independent workflow whose snapshot matches the immutable request amount, an active managed project, a positive existing allocation, and enough remaining budget. Pending, rejected and approved-unposted requests contribute zero spending. The category is the approved type snapshot. Dates cannot be future dates.
+- Project and transaction locks, database uniqueness, and atomic expense/audit writes prevent duplicate posting and concurrent overruns. No override is supported. Monetary aggregation and ratios use Decimal with 40-digit precision; amounts are serialized as strings. JavaScript numbers are used only for chart presentation.
+- `POST /api/expenses/:id/reverse`: Super Admin only; required `comment` and optional `expenseDate`. Adds an exact negative entry, keeps the original unchanged, and cannot reverse a reversal or repeat a reversal. The correction date is between the original date and today. Archived projects retain this administrative correction path. Corrected purchases need a new approved request.
+- Approved transactions with an unreversed posting cannot be cancelled. Reversal permits audited Super Admin cancellation; the original transaction cannot be posted again.
+- `GET /api/projects/:id/budget-summary`: authorized budget, net expenses, remaining budget and utilization (PHP). Project budget edits cannot unset or reduce the allocation below net spending; budget changes have their own audit event.
+- Expense lists accept `q, projectId, clientId, category, dateFrom, dateTo, projectState=all|current|archived, sort=expenseDate|createdAt|amount|category, direction, page, pageSize`. Summary also accepts `projectPage` for its ten-project breakdown. All filters intersect financial scope. Dates/category/search affect filtered ledger totals and category charts; lifetime allocation and spending balances follow project/client/archive filters. Missing/zero allocations have null utilization, never an invented percentage.
+
+## Reports ? checkpoint 3.4
+
+Pending.

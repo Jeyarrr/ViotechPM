@@ -27,11 +27,16 @@ Completed and verified on 2026-10-29.
 - Implemented independent reviewer resolution, default two-stage policy, explicit Super Admin configuration, approve/reject/return, required feedback, pending/history queues, safe reassignment, self-approval denial, atomic decisions, duplicate/concurrent decision protection, and pending-account/manager-handoff safeguards.
 - Added transaction directory/editor/details/history, approval queue tabs and decision dialogs, request type administration, project approval configuration, and reviewer reassignment, using existing design tokens and controls.
 - Verification: all 55 backend tests passed (including Phase 1/2 and milestone tests); eight transaction/auth/navigation browser cases passed across desktop, laptop, tablet, and mobile. Typecheck, lint, formatting, full build, migration status, and original-record/environment/login/logo/palette preservation passed. Desktop screenshot reviewed; no known checkpoint 3.2 blockers.
-- Ready for checkpoint commit/push. Expense posting is intentionally pending checkpoint 3.3; approval alone has not been counted as spending.
+- Committed and pushed as `a58e645`; GitHub CI passed. Approval alone does not count as spending.
 
 ## 3.3 — Budgets and expenses
 
-Next. Implement controlled unique posting, decimal-safe summaries, overrun prevention, immutable reversal history, and financial UI/tests. Keep the existing Project budget as source of truth. Pending/rejected/approved-unposted requests must not affect expenses. Expense category snapshots should reflect the approved submission; finalized values cannot be edited. Adjustments will use a recorded reversal and a new approved request.
+Completed and verified on 2026-10-29.
+
+- Applied additive migrations `20261029000400_expenses` and `20261029000500_expense_reason_guard`. Reused the existing Project budget. Expense posting has a unique transaction link; signed posting/reversal constraints preserve financial history.
+- Implemented controlled approved-snapshot posting, project-level serialization, exact decimal summaries, budget overrun and allocation-reduction protection, and Super Admin reversals with required reason. Original expenses cannot be edited, deleted, or reposted.
+- Added Budget & Expenses with project/client/date/category/archive/search filters, lifetime versus filtered totals, project breakdown, real charts, controlled posting and reversals; linked financial panels in project and transaction details.
+- All 63 backend tests passed, including eight financial integrity cases. Eight expense/transaction browser cases passed across all four viewports. TypeScript, ESLint, formatting, full builds, migration deployment and preservation checks passed. Desktop financial screenshot reviewed; existing dependency notices are non-blocking. Ready for checkpoint commit/push.
 
 ## 3.4 — Reporting and integration
 

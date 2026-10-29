@@ -9,7 +9,7 @@ import {
   transactionListSchema,
   reasonSchema,
 } from '../validators/transaction.js';
-import { accessibleProject } from '../services/project.service.js';
+import { accessibleProject, isAdmin } from '../services/project.service.js';
 import { audit, changedFields, conflict, pageResult } from '../services/core.service.js';
 import {
   accessibleTransaction,
@@ -212,13 +212,14 @@ export function transactionRoutes(db: PrismaClient) {
       input = reasonSchema.parse(req.body);
     const item = await db.$transaction(async (tx) => {
       const before = await accessibleTransaction(tx, id, req.user!, true);
+      if (isAdmin(req.user!) && before.expense && !before.expense.reversedBy)
+        conflict('Reverse the posted expense before cancelling this transaction.');
       if (!transactionPermissions(before, req.user!).canCancel)
         throw new AppError(
           403,
           'FORBIDDEN',
           'This request cannot be cancelled by your account in its current state.',
         );
-      // Expense posting/reversal controls are integrated in checkpoint 3.3.
       const workflows = await tx.approvalWorkflow.findMany({
         where: { transactionId: id, status: 'ACTIVE' },
         select: { id: true },

@@ -45,6 +45,9 @@ const TransactionDetailsPage = lazy(() =>
 const ApprovalsPage = lazy(() =>
   import('@/pages/approvals').then((m) => ({ default: m.ApprovalsPage })),
 );
+const ExpensesPage = lazy(() =>
+  import('@/pages/expenses').then((m) => ({ default: m.ExpensesPage })),
+);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -68,6 +71,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                   <Route path="transactions" element={<TransactionsPage />} />
                   <Route path="transactions/:id" element={<TransactionDetailsPage />} />
                   <Route path="approvals" element={<ApprovalsPage />} />
+                  <Route path="expenses" element={<ExpensesPage />} />
                   {allNavigation
                     .filter(
                       (item) =>
@@ -81,6 +85,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                           '/milestones',
                           '/transactions',
                           '/approvals',
+                          '/expenses',
                         ].includes(item.path),
                     )
                     .map((item) => (
