@@ -37,27 +37,29 @@ model Department {
 }
 
 model User {
-  id              String          @id @default(uuid()) @db.Uuid
-  name            String          @db.VarChar(150)
-  email           String          @unique @db.VarChar(254)
-  passwordHash    String          @map("password_hash")
-  roleId          String          @map("role_id") @db.Uuid
-  role            Role            @relation(fields: [roleId], references: [id], onDelete: Restrict)
-  status          AccountStatus   @default(ACTIVE)
-  departmentId    String?         @map("department_id") @db.Uuid
-  department      Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  profileImage    String?         @map("profile_image")
-  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
-  lastLoginAt     DateTime?       @map("last_login_at") @db.Timestamptz(3)
-  auditLogs       AuditLog[]
-  createdClients  Client[]
-  managedProjects Project[]       @relation("ProjectManager")
-  createdProjects Project[]       @relation("ProjectCreator")
-  memberships     ProjectMember[] @relation("MemberUser")
-  assignedMembers ProjectMember[] @relation("MemberAssigner")
-  assignedTasks   Task[]          @relation("TaskAssignee")
-  createdTasks    Task[]          @relation("TaskCreator")
+  id                    String          @id @default(uuid()) @db.Uuid
+  name                  String          @db.VarChar(150)
+  email                 String          @unique @db.VarChar(254)
+  passwordHash          String          @map("password_hash")
+  roleId                String          @map("role_id") @db.Uuid
+  role                  Role            @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  status                AccountStatus   @default(ACTIVE)
+  departmentId          String?         @map("department_id") @db.Uuid
+  department            Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  profileImage          String?         @map("profile_image")
+  createdAt             DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  lastLoginAt           DateTime?       @map("last_login_at") @db.Timestamptz(3)
+  auditLogs             AuditLog[]
+  createdClients        Client[]
+  managedProjects       Project[]       @relation("ProjectManager")
+  createdProjects       Project[]       @relation("ProjectCreator")
+  memberships           ProjectMember[] @relation("MemberUser")
+  assignedMembers       ProjectMember[] @relation("MemberAssigner")
+  assignedTasks         Task[]          @relation("TaskAssignee")
+  createdTasks          Task[]          @relation("TaskCreator")
+  responsibleMilestones Milestone[]     @relation("MilestoneResponsible")
+  createdMilestones     Milestone[]     @relation("MilestoneCreator")
 
   @@index([roleId])
   @@index([departmentId])
@@ -119,6 +121,7 @@ model ProjectCategory {
 }
 
 model Project {
+  milestones           Milestone[]
   members              ProjectMember[]
   tasks                Task[]
   id                   String          @id @default(uuid()) @db.Uuid
@@ -180,6 +183,8 @@ model ProjectMember {
 }
 
 model Task {
+  milestoneId String?    @map("milestone_id") @db.Uuid
+  milestone   Milestone? @relation(fields: [milestoneId, projectId], references: [id, projectId], onDelete: Restrict)
   id          String     @id @default(uuid()) @db.Uuid
   code        String     @unique @db.VarChar(40)
   projectId   String     @map("project_id") @db.Uuid
@@ -202,7 +207,44 @@ model Task {
   @@index([projectId, archivedAt, status])
   @@index([assigneeId, dueDate])
   @@index([createdById])
+  @@index([milestoneId, archivedAt, status])
   @@map("tasks")
+}
+
+enum MilestoneStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  IN_REVIEW
+  COMPLETED
+  DELAYED
+}
+
+model Milestone {
+  id            String          @id @default(uuid()) @db.Uuid
+  projectId     String          @map("project_id") @db.Uuid
+  project       Project         @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  title         String          @db.VarChar(180)
+  description   String?         @db.VarChar(4000)
+  responsibleId String?         @map("responsible_id") @db.Uuid
+  responsible   User?           @relation("MilestoneResponsible", fields: [responsibleId], references: [id], onDelete: Restrict)
+  startDate     DateTime        @map("start_date") @db.Date
+  dueDate       DateTime        @map("due_date") @db.Date
+  completedAt   DateTime?       @map("completed_at") @db.Timestamptz(3)
+  status        MilestoneStatus @default(NOT_STARTED)
+  priority      Priority        @default(MEDIUM)
+  displayOrder  Int             @default(0) @map("display_order")
+  createdById   String          @map("created_by_id") @db.Uuid
+  createdBy     User            @relation("MilestoneCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  archivedAt    DateTime?       @map("archived_at") @db.Timestamptz(3)
+  tasks         Task[]
+
+  @@unique([id, projectId])
+  @@index([projectId, archivedAt, displayOrder])
+  @@index([responsibleId, dueDate])
+  @@index([createdById])
+  @@map("milestones")
 }
 
 model AuditLog {

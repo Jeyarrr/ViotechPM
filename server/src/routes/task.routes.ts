@@ -15,6 +15,7 @@ import {
 } from '../services/task.service.js';
 import { audit, changedFields, conflict, notFound, pageResult } from '../services/core.service.js';
 import { AppError } from '../utils/errors.js';
+import { validateMilestoneLink, reconcileMilestones } from '../services/milestone.service.js';
 
 export function taskRoutes(db: PrismaClient) {
   const router = Router();
@@ -43,6 +44,7 @@ export function taskRoutes(db: PrismaClient) {
           archivedAt: q.archived === 'true' ? { not: null } : null,
           project: { archivedAt: null },
           projectId: q.projectId,
+          milestoneId: q.milestoneId,
           assigneeId: q.mine === 'true' ? req.user!.id : q.assigneeId,
           priority: q.priority,
           status: q.status,
@@ -95,6 +97,7 @@ export function taskRoutes(db: PrismaClient) {
       const project = await accessibleProject(tx, input.projectId, req.user!, true);
       if (project.archivedAt) conflict('Restore this project before changing its tasks.');
       await validateTask(tx, input);
+      await validateMilestoneLink(tx, input);
       const item = await tx.task.create({
         data: {
           ...input,
@@ -106,6 +109,7 @@ export function taskRoutes(db: PrismaClient) {
       await audit(tx, req.user!.id, 'task.created', 'Task', item.id, input);
       if (item.completedAt)
         await audit(tx, req.user!.id, 'task.completed', 'Task', item.id, { projectId: project.id });
+      await reconcileMilestones(tx, [item.milestoneId], req.user!.id);
       await reconcileCompletion(tx, project, req.user!.id);
       return item;
     });
@@ -133,6 +137,7 @@ export function taskRoutes(db: PrismaClient) {
           );
         if (project.archivedAt || before.archivedAt) conflict('Archived work cannot be edited.');
         const next = { ...before, ...input };
+        await validateMilestoneLink(tx, next, before.milestoneId);
         await validateTask(
           tx,
           next,
@@ -148,6 +153,7 @@ export function taskRoutes(db: PrismaClient) {
         });
         await audit(tx, req.user!.id, 'task.updated', 'Task', id, {
           projectId: project.id,
+          milestoneId: item.milestoneId,
           changes: changedFields(before, item, Object.keys(input)),
         });
         if (before.assigneeId !== item.assigneeId)
@@ -164,6 +170,7 @@ export function taskRoutes(db: PrismaClient) {
           });
         if (!before.completedAt && item.completedAt)
           await audit(tx, req.user!.id, 'task.completed', 'Task', id, { projectId: project.id });
+        await reconcileMilestones(tx, [before.milestoneId, item.milestoneId], req.user!.id);
         await reconcileCompletion(tx, project, req.user!.id);
         return item;
       });
@@ -180,6 +187,7 @@ export function taskRoutes(db: PrismaClient) {
       if (project.archivedAt || before.archivedAt) conflict('This work is already archived.');
       const item = await tx.task.update({ where: { id }, data: { archivedAt: new Date() } });
       await audit(tx, req.user!.id, 'task.archived', 'Task', id, { projectId: project.id });
+      await reconcileMilestones(tx, [item.milestoneId], req.user!.id);
       await reconcileCompletion(tx, project, req.user!.id);
       return item;
     });

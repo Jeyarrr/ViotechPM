@@ -50,7 +50,7 @@ const permissions: Record<string, Permission[]> = {
   project_manager: [...base, ...management, 'projects:write'],
   developer: base,
   it_support: base,
-  employee: ['overview:read', 'tasks:read', 'projects:read'],
+  employee: ['overview:read', 'tasks:read', 'projects:read', 'milestones:read'],
 };
 export function permissionsFor(role: string): Permission[] {
   return permissions[role] ?? [];

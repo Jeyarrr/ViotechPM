@@ -5,7 +5,7 @@ import { api } from '@/services/api';
 import { RecordDialog, RecordForm, type FormField } from './crud';
 import { ErrorState } from './feedback';
 import { Button } from '@/components/ui/button';
-import type { TaskRecord, MemberRecord, PageResult } from '@/types/core';
+import type { TaskRecord, MemberRecord, PageResult, MilestoneRecord } from '@/types/core';
 
 import { taskStatuses, taskLabel } from '@/lib/tasks';
 export function TaskEditor({
@@ -21,6 +21,24 @@ export function TaskEditor({
 }) {
   const [projectId, setProjectId] = useState(task?.projectId ?? initialProject ?? '');
   const projects = useLookup('projects', !projectId);
+  const milestones = useQuery({
+    queryKey: ['core', 'milestone-options', projectId],
+    enabled: !!projectId,
+    queryFn: async () => {
+      const items: MilestoneRecord[] = [];
+      let page = 1,
+        pages = 1;
+      do {
+        const result = await api.get<PageResult<MilestoneRecord>>(
+          `/milestones?projectId=${projectId}&page=${page}&pageSize=100`,
+        );
+        items.push(...result.items);
+        pages = result.pages;
+        page++;
+      } while (page <= pages);
+      return items;
+    },
+  });
   const members = useQuery({
     queryKey: ['core', 'member-options', projectId],
     enabled: !!projectId,
@@ -67,11 +85,19 @@ export function TaskEditor({
         )}
       </RecordDialog>
     );
-  if (!members.data)
+  if (!members.data || !milestones.data)
     return (
       <RecordDialog title="Task" description="Loading eligible project members." onClose={onClose}>
-        {members.isError ? (
-          <ErrorState message={members.error.message} retry={() => void members.refetch()} />
+        {members.isError || milestones.isError ? (
+          <ErrorState
+            message={
+              members.error?.message ?? milestones.error?.message ?? 'Unable to load task options.'
+            }
+            retry={() => {
+              void members.refetch();
+              void milestones.refetch();
+            }}
+          />
         ) : (
           <p role="status">Loading…</p>
         )}
@@ -88,6 +114,18 @@ export function TaskEditor({
   const fields: FormField[] = [
     { name: 'code', label: 'Task code', required: true, max: 40 },
     { name: 'title', label: 'Task title', required: true, max: 180 },
+    {
+      name: 'milestoneId',
+      label: 'Milestone',
+      type: 'select',
+      options: [
+        ...milestones.data.map((m) => ({ value: m.id, label: m.title })),
+        ...(task?.milestone && !milestones.data.some((m) => m.id === task.milestoneId)
+          ? [{ value: task.milestone.id, label: `${task.milestone.title} (archived)` }]
+          : []),
+      ],
+      hint: 'Optional. Link this task to a deliverable in the same project.',
+    },
     {
       name: 'assigneeId',
       label: 'Assignee',
@@ -125,6 +163,7 @@ export function TaskEditor({
           ? {
               code: task.code,
               title: task.title,
+              milestoneId: task.milestoneId ?? '',
               assigneeId: task.assigneeId ?? '',
               priority: task.priority,
               status: task.status,

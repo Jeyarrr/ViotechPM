@@ -107,6 +107,13 @@ export async function validateProject(
       conflict(
         'Complete at least one project task and all remaining current tasks before completing this project.',
       );
+    if (
+      before &&
+      (await tx.milestone.count({
+        where: { projectId: before.id, archivedAt: null, status: { not: 'COMPLETED' } },
+      }))
+    )
+      conflict('Complete all current milestones before completing this project.');
   }
 }
 

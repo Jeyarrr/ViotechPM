@@ -82,6 +82,8 @@ export interface EmployeeRecord {
   memberships: { project: Lookup & { archivedAt: string | null } }[];
 }
 export interface TaskRecord {
+  milestoneId: string | null;
+  milestone: { id: string; title: string; archivedAt: string | null } | null;
   id: string;
   code: string;
   title: string;
@@ -100,4 +102,31 @@ export interface TaskRecord {
   assignee: (Lookup & { profileImage: string | null }) | null;
   canManage?: boolean;
   canUpdateStatus?: boolean;
+}
+
+export interface MilestoneRecord {
+  id: string;
+  projectId: string;
+  title: string;
+  description: string | null;
+  responsibleId: string | null;
+  responsible: (Lookup & { profileImage: string | null }) | null;
+  project: Lookup & { managerId: string; archivedAt: string | null };
+  startDate: string;
+  dueDate: string;
+  completedAt: string | null;
+  status: string;
+  priority: string;
+  displayOrder: number;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  totalTasks: number;
+  completedTasks: number;
+  progress: number;
+  overdue: boolean;
+  canManage: boolean;
+  canUpdateStatus: boolean;
+  tasks?: TaskRecord[];
+  activity?: { id: string; action: string; timestamp: string; actor: { name: string } | null }[];
 }

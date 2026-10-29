@@ -29,6 +29,12 @@ const ProjectDetailsPage = lazy(() =>
   import('@/pages/projects').then((m) => ({ default: m.ProjectDetailsPage })),
 );
 const TeamPage = lazy(() => import('@/pages/team').then((m) => ({ default: m.TeamPage })));
+const MilestonesPage = lazy(() =>
+  import('@/pages/milestones').then((m) => ({ default: m.MilestonesPage })),
+);
+const MilestoneDetailsPage = lazy(() =>
+  import('@/pages/milestones').then((m) => ({ default: m.MilestoneDetailsPage })),
+);
 const TasksPage = lazy(() => import('@/pages/tasks').then((m) => ({ default: m.TasksPage })));
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -48,12 +54,20 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                   <Route path="projects/:id" element={<ProjectDetailsPage />} />
                   <Route path="team" element={<TeamPage />} />
                   <Route path="tasks" element={<TasksPage />} />
+                  <Route path="milestones" element={<MilestonesPage />} />
+                  <Route path="milestones/:id" element={<MilestoneDetailsPage />} />
                   {allNavigation
                     .filter(
                       (item) =>
-                        !['/', '/profile', '/clients', '/projects', '/team', '/tasks'].includes(
-                          item.path,
-                        ),
+                        ![
+                          '/',
+                          '/profile',
+                          '/clients',
+                          '/projects',
+                          '/team',
+                          '/tasks',
+                          '/milestones',
+                        ].includes(item.path),
                     )
                     .map((item) => (
                       <Route key={item.path} path={item.path} element={<FutureModulePage />} />

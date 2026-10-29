@@ -55,6 +55,7 @@ export function TasksPage() {
   const [filters, setFilters] = useState({
     q: '',
     projectId: search.get('projectId') ?? '',
+    milestoneId: search.get('milestoneId') ?? '',
     status: '',
     assigneeId: '',
     priority: '',
@@ -114,6 +115,14 @@ export function TasksPage() {
         )}
       </div>
       <Notice message={notice} dismiss={() => setNotice('')} />
+      {filters.milestoneId && (
+        <div className="row-actions">
+          <span className="field-hint">Showing tasks linked to the selected milestone.</span>
+          <Button size="sm" variant="ghost" onClick={() => update('milestoneId', '')}>
+            Clear milestone filter
+          </Button>
+        </div>
+      )}
       <Card>
         <div className="crud-toolbar">
           <input
@@ -310,6 +319,17 @@ export function TasksPage() {
                   </Link>
                 ),
               },
+              {
+                label: 'Milestone',
+                render: (r) =>
+                  r.milestone ? (
+                    <Link className="record-link" to={`/milestones/${r.milestone.id}`}>
+                      {r.milestone.title}
+                    </Link>
+                  ) : (
+                    'Not linked'
+                  ),
+              },
               { label: 'Assignee', render: (r) => r.assignee?.name ?? 'Unassigned' },
               { label: 'Priority', render: (r) => <StatusBadge value={r.priority} /> },
               {
@@ -345,6 +365,7 @@ export function TasksPage() {
           <dl className="record-details">
             {[
               ['Project', detail.project.name],
+              ['Milestone', detail.milestone?.title ?? 'Not linked'],
               ['Assignee', detail.assignee?.name ?? 'Unassigned'],
               ['Status', taskLabel(detail.status)],
               ['Priority', taskLabel(detail.priority)],

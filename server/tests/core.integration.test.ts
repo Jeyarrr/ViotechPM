@@ -132,6 +132,7 @@ afterEach(async () => {
 afterAll(async () => {
   const ids = [adminId, ...Object.values(users)].filter(Boolean);
   await db.task.deleteMany({ where: { project: { createdById: { in: ids } } } });
+  await db.milestone.deleteMany({ where: { project: { createdById: { in: ids } } } });
   await db.projectMember.deleteMany({ where: { project: { createdById: { in: ids } } } });
   await db.project.deleteMany({ where: { createdById: { in: ids } } });
   await db.projectCategory.deleteMany({ where: { name: { contains: runId } } });
@@ -139,6 +140,219 @@ afterAll(async () => {
   await db.auditLog.deleteMany({ where: { actorId: { in: ids } } });
   await db.user.deleteMany({ where: { id: { in: ids } } });
   await db.$disconnect();
+});
+
+describe('Milestones on PostgreSQL', () => {
+  async function fixture(member = users.developer!) {
+    const project = await write(admin, 'post', '/api/projects', await projectInput());
+    expect(project.status).toBe(201);
+    const projectId = project.body.data.id as string;
+    expect(
+      (await write(admin, 'post', `/api/projects/${projectId}/members`, { userId: member })).status,
+    ).toBe(201);
+    const input = {
+      projectId,
+      title: `Milestone ${runId}`,
+      description: 'Deliverable',
+      responsibleId: member,
+      startDate: '2026-10-01',
+      dueDate: '2026-10-20',
+      status: 'NOT_STARTED',
+      priority: 'HIGH',
+      displayOrder: 2,
+    };
+    const created = await write(admin, 'post', '/api/milestones', input);
+    expect(created.status).toBe(201);
+    return { projectId, id: created.body.data.id as string, input };
+  }
+  it('creates, edits, manually completes empty milestones, archives/restores, and records history', async () => {
+    const { id } = await fixture();
+    const before = await db.milestone.findUniqueOrThrow({ where: { id } });
+    const detail = (await admin.get(`/api/milestones/${id}`)).body.data;
+    expect(detail.progress).toBe(0);
+    expect(detail.overdue).toBe(true);
+    expect((await db.milestone.findUniqueOrThrow({ where: { id } })).updatedAt).toEqual(
+      before.updatedAt,
+    );
+    const done = await write(admin, 'patch', `/api/milestones/${id}`, {
+      status: 'COMPLETED',
+      title: 'Ready for delivery',
+    });
+    expect(done.status).toBe(200);
+    expect(done.body.data.completedAt).toBeTruthy();
+    expect(done.body.data.progress).toBe(100);
+    expect(
+      (await write(admin, 'patch', `/api/milestones/${id}`, { description: 'Updated description' }))
+        .body.data.completedAt,
+    ).toBe(done.body.data.completedAt);
+    expect((await write(admin, 'delete', `/api/milestones/${id}`)).status).toBe(200);
+    expect(
+      (await write(admin, 'patch', `/api/milestones/${id}`, { title: 'Cannot edit' })).status,
+    ).toBe(409);
+    expect((await write(admin, 'post', `/api/milestones/${id}/restore`)).status).toBe(200);
+    const logs = await db.auditLog.findMany({ where: { entityType: 'Milestone', entityId: id } });
+    expect(logs.map((r) => r.action)).toEqual(
+      expect.arrayContaining([
+        'milestone.created',
+        'milestone.updated',
+        'milestone.completed',
+        'milestone.archived',
+        'milestone.restored',
+      ]),
+    );
+  });
+  it('links only same-project tasks, blocks incomplete completion, and reconciles reopening', async () => {
+    const { id, projectId } = await fixture();
+    const input = {
+      code: `MTSK-${runId}`,
+      projectId,
+      milestoneId: id,
+      title: 'Milestone task',
+      assigneeId: users.developer,
+      priority: 'MEDIUM',
+      status: 'TODO',
+      startDate: '2026-10-01',
+      dueDate: '2026-10-20',
+    };
+    const task = await write(admin, 'post', '/api/tasks', input);
+    expect(task.status).toBe(201);
+    const taskId = task.body.data.id as string;
+    expect(
+      (await write(admin, 'patch', `/api/milestones/${id}`, { status: 'COMPLETED' })).status,
+    ).toBe(409);
+    expect(
+      (await write(admin, 'patch', `/api/tasks/${taskId}/status`, { status: 'COMPLETED' })).status,
+    ).toBe(200);
+    expect((await admin.get(`/api/milestones/${id}`)).body.data.progress).toBe(100);
+    expect(
+      (await write(admin, 'patch', `/api/milestones/${id}`, { status: 'COMPLETED' })).status,
+    ).toBe(200);
+    expect(
+      (await write(admin, 'patch', `/api/projects/${projectId}`, { status: 'COMPLETED' })).status,
+    ).toBe(200);
+    const developer = await login('developer');
+    expect(
+      (await write(developer, 'patch', `/api/tasks/${taskId}/status`, { status: 'IN_PROGRESS' }))
+        .status,
+    ).toBe(200);
+    expect((await admin.get(`/api/milestones/${id}`)).body.data).toMatchObject({
+      status: 'IN_PROGRESS',
+      completedAt: null,
+      progress: 0,
+    });
+    expect((await admin.get(`/api/projects/${projectId}`)).body.data).toMatchObject({
+      status: 'ACTIVE',
+      actualCompletionDate: null,
+    });
+    const other = await fixture(users.employee!);
+    expect(
+      (
+        await write(admin, 'post', '/api/tasks', {
+          ...input,
+          code: `CROSS-${runId}`,
+          projectId: other.projectId,
+        })
+      ).status,
+    ).toBe(409);
+    expect(
+      (await write(admin, 'patch', `/api/tasks/${taskId}`, { milestoneId: other.id })).status,
+    ).toBe(409);
+    expect((await admin.get(`/api/tasks?milestoneId=${id}`)).body.data.total).toBe(1);
+    expect((await write(admin, 'delete', `/api/milestones/${id}`)).status).toBe(200);
+    expect((await db.task.findUniqueOrThrow({ where: { id: taskId } })).milestoneId).toBe(id);
+    expect(
+      (await write(admin, 'post', '/api/tasks', { ...input, code: `ARCH-${runId}` })).status,
+    ).toBe(409);
+    expect((await write(admin, 'post', `/api/milestones/${id}/restore`)).status).toBe(200);
+    expect(
+      (await write(admin, 'patch', `/api/tasks/${taskId}`, { milestoneId: null })).status,
+    ).toBe(200);
+    expect((await db.task.findUniqueOrThrow({ where: { id: taskId } })).milestoneId).toBeNull();
+  });
+  it('enforces responsible-member permissions and safe member/account changes', async () => {
+    const { id, projectId, input } = await fixture();
+    const developer = await login('developer'),
+      outsider = await login('it_support');
+    await developer.get(`/api/milestones/${id}`).expect(200);
+    await outsider.get(`/api/milestones/${id}`).expect(404);
+    expect(
+      (await write(outsider, 'patch', `/api/milestones/${id}`, { status: 'IN_PROGRESS' })).status,
+    ).toBe(404);
+    expect(
+      (await write(developer, 'patch', `/api/milestones/${id}`, { status: 'IN_PROGRESS' })).status,
+    ).toBe(200);
+    expect(
+      (await write(developer, 'patch', `/api/milestones/${id}`, { status: 'COMPLETED' })).status,
+    ).toBe(403);
+    expect(
+      (await write(developer, 'patch', `/api/milestones/${id}`, { title: 'Forbidden edit' }))
+        .status,
+    ).toBe(422);
+    expect((await write(developer, 'post', '/api/milestones', input)).status).toBe(403);
+    expect(
+      (await write(admin, 'delete', `/api/projects/${projectId}/members/${users.developer}`))
+        .status,
+    ).toBe(409);
+    expect(
+      (
+        await write(admin, 'patch', `/api/employees/${users.developer}/status`, {
+          status: 'INACTIVE',
+        })
+      ).status,
+    ).toBe(409);
+    expect(
+      (await write(admin, 'patch', `/api/milestones/${id}`, { responsibleId: users.it_support }))
+        .status,
+    ).toBe(409);
+    expect(
+      (await write(admin, 'patch', `/api/milestones/${id}`, { responsibleId: null })).status,
+    ).toBe(200);
+    expect(
+      (await write(admin, 'delete', `/api/projects/${projectId}/members/${users.developer}`))
+        .status,
+    ).toBe(200);
+    await developer.get(`/api/milestones/${id}`).expect(404);
+  });
+  it('validates dates and fields, searches, filters, paginates, and protects archived projects', async () => {
+    const { id, projectId, input } = await fixture(users.employee!);
+    const employee = await login('employee');
+    await employee.get(`/api/milestones/${id}`).expect(200);
+    expect(
+      (await write(employee, 'patch', `/api/milestones/${id}`, { status: 'IN_PROGRESS' })).status,
+    ).toBe(403);
+    expect(
+      (await write(admin, 'post', '/api/milestones', { ...input, dueDate: '2026-09-01' })).status,
+    ).toBe(422);
+    expect(
+      (await write(admin, 'patch', `/api/milestones/${id}`, { completedAt: '2026-10-02' })).status,
+    ).toBe(422);
+    expect(
+      (
+        await write(admin, 'post', '/api/milestones', {
+          ...input,
+          title: 'Second deliverable',
+          displayOrder: 1,
+        })
+      ).status,
+    ).toBe(201);
+    const list = (await admin.get(`/api/milestones?projectId=${projectId}&pageSize=1`)).body.data;
+    expect(list.total).toBe(2);
+    expect(list.pages).toBe(2);
+    expect(list.items[0].title).toBe('Second deliverable');
+    expect(
+      (
+        await admin.get(
+          `/api/milestones?projectId=${projectId}&q=Second&priority=HIGH&status=NOT_STARTED&overdue=true`,
+        )
+      ).body.data.total,
+    ).toBe(1);
+    expect((await write(admin, 'delete', `/api/projects/${projectId}`)).status).toBe(200);
+    expect(
+      (await write(admin, 'patch', `/api/milestones/${id}`, { status: 'COMPLETED' })).status,
+    ).toBe(409);
+    expect((await admin.get(`/api/milestones?projectId=${projectId}`)).body.data.total).toBe(0);
+    expect((await write(admin, 'post', `/api/projects/${projectId}/restore`)).status).toBe(200);
+  });
 });
 
 describe('Team and tasks on PostgreSQL', () => {

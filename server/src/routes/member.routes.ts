@@ -61,6 +61,17 @@ export function memberRoutes(db: PrismaClient) {
       if (project.managerId === userId)
         conflict('Change the project manager before removing this member.');
       if (
+        await tx.milestone.count({
+          where: {
+            projectId,
+            responsibleId: userId,
+            archivedAt: null,
+            status: { not: 'COMPLETED' },
+          },
+        })
+      )
+        conflict('Reassign this member’s unfinished milestones before removing them.');
+      if (
         await tx.task.count({
           where: { projectId, assigneeId: userId, archivedAt: null, status: { not: 'COMPLETED' } },
         })

@@ -163,6 +163,18 @@ export function employeeRoutes(db: PrismaClient) {
             }))
           )
             conflict('Reassign or unassign this employee’s unfinished tasks first.');
+          if (
+            next.status !== 'ACTIVE' &&
+            (await tx.milestone.count({
+              where: {
+                responsibleId: id,
+                archivedAt: null,
+                status: { not: 'COMPLETED' },
+                project: { archivedAt: null },
+              },
+            }))
+          )
+            conflict('Reassign this employee’s unfinished milestones first.');
           const item = await tx.user.update({
             where: { id },
             data: input,

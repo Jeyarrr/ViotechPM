@@ -12,6 +12,7 @@ export const taskSchema = z
   .object({
     code: codeSchema,
     projectId: idSchema,
+    milestoneId: optionalId,
     title: z.string().trim().min(2).max(180),
     description: optionalText(4000),
     assigneeId: optionalId,
@@ -26,6 +27,7 @@ export const taskListSchema = listSchema
     sort: z.enum(['title', 'code', 'createdAt', 'updatedAt', 'dueDate']).default('dueDate'),
     direction: z.enum(['asc', 'desc']).default('asc'),
     projectId: idSchema.optional(),
+    milestoneId: idSchema.optional(),
     assigneeId: idSchema.optional(),
     status: taskStatusSchema.optional(),
     priority: prioritySchema.optional(),

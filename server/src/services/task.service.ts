@@ -10,6 +10,7 @@ export const today = () =>
 export const taskInclude = {
   project: { select: { id: true, code: true, name: true, managerId: true, archivedAt: true } },
   assignee: { select: { id: true, name: true, profileImage: true } },
+  milestone: { select: { id: true, title: true, archivedAt: true } },
 } as const;
 export function taskScope(user: PublicUser): Prisma.TaskWhereInput {
   return {
@@ -52,7 +53,10 @@ export async function reconcileCompletion(
   const unfinished = await tx.task.count({
     where: { projectId: project.id, archivedAt: null, status: { not: 'COMPLETED' } },
   });
-  if (!total || unfinished) {
+  const unfinishedMilestones = await tx.milestone.count({
+    where: { projectId: project.id, archivedAt: null, status: { not: 'COMPLETED' } },
+  });
+  if (!total || unfinished || unfinishedMilestones) {
     await tx.project.update({
       where: { id: project.id },
       data: { status: 'ACTIVE', actualCompletionDate: null },
