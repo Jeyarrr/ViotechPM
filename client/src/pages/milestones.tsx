@@ -1,3 +1,4 @@
+import { DeadlineIndicator } from '@/components/deadline-indicator';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams, useSearchParams } from 'react-router';
@@ -193,7 +194,11 @@ export function MilestonesPage() {
                 render: (m) => (
                   <div>
                     <StatusBadge value={m.archivedAt ? 'ARCHIVED' : m.status} />
-                    {m.overdue && !m.archivedAt && <small className="field-error">Overdue</small>}
+                    <DeadlineIndicator
+                      dueDate={m.dueDate}
+                      status={m.status}
+                      archived={!!m.archivedAt}
+                    />
                   </div>
                 ),
               },

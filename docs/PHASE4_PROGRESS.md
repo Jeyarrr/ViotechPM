@@ -2,7 +2,7 @@
 
 ## Current checkpoint
 
-Checkpoints 4.1 and 4.2 implemented and verified; checkpoint 4.3 next. Phase 4 is not complete.
+Checkpoints 4.1?4.3 implemented and verified; checkpoint 4.4 next. Phase 4 is not complete.
 
 ## Preserved starting state
 
@@ -50,3 +50,12 @@ Use isolated `viotechpm_test` for tests. Apply additive migrations only. Record 
 - Task detail page and task modal have discussions. Project Details has the activity timeline. Socket invalidation refreshes authorized discussion viewers after commit.
 - 31 focused backend tests passed (core CRUD plus eight collaboration/security cases); four browser cases passed across all viewports, including two-viewer realtime updates, edits, refresh persistence and timeline filtering. Types/lint/format passed.
 - Checkpoint 4.1 commit: 40a8c75; push succeeded and GitHub CI run 40910081233 passed.
+
+## Checkpoint 4.3 verification (2026-10-30)
+
+- ProjectDocument added with private local storage abstraction; migrations 20261030000200_project_documents and 20261030000300_document_integrity applied to both databases. Compound task/project foreign key and positive size constraint enforced.
+- Authorized binary uploads/downloads and archive UI in Project Details and task pages; progress, signature checks, configurable limits, generated keys and path validation. Stored files never committed.
+- Backend Manila scheduler, advisory locking, persistent notification dedupe keys, completed/archived exclusion and restart-safe delivery. Task, milestone and project due indicators reuse current theme.
+- 14 focused backend cases passed, including signatures/traversal/size, private downloads, archive protection, simulated storage failure, reminder dedupe, completed/archived exclusion and Manila timezone boundaries. Four browser cases passed with upload/download plus two-viewer discussion across all viewports. Types and lint passed.
+- Documented storage/scanning limitations, supported formats, reminder settings and persistent hosting requirements in PHASE4_API.md. No production storage or deployment configured.
+- Checkpoint 4.2 committed and pushed as 8a59f0f.

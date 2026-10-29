@@ -2,6 +2,8 @@ import { createServer } from 'node:http';
 import { createRealtime } from './services/realtime.service.js';
 import { notificationRoutes } from './routes/notification.routes.js';
 import { collaborationRoutes } from './routes/collaboration.routes.js';
+import { documentRoutes } from './routes/document.routes.js';
+import type { PrivateStorage } from './services/storage.service.js';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -30,7 +32,11 @@ import { expenseRoutes } from './routes/expense.routes.js';
 import { auditRoutes } from './routes/audit.routes.js';
 import { reportRoutes } from './routes/report.routes.js';
 
-export async function createApp(config: AppConfig, db: PrismaClient) {
+export async function createApp(
+  config: AppConfig,
+  db: PrismaClient,
+  options: { storage?: PrivateStorage } = {},
+) {
   const app = express();
   const auth = await createAuthService(db);
   const pool = new pg.Pool({
@@ -63,7 +69,7 @@ export async function createApp(config: AppConfig, db: PrismaClient) {
     cors({
       origin: allowedOrigins,
       credentials: true,
-      allowedHeaders: ['Content-Type', 'X-CSRF-Token'],
+      allowedHeaders: ['Content-Type', 'X-CSRF-Token', 'X-File-Name'],
     }),
   );
   app.use(
@@ -107,6 +113,7 @@ export async function createApp(config: AppConfig, db: PrismaClient) {
   app.use('/api/auth', authRoutes(auth, db, secure));
   app.use('/api/notifications', requireAuth(auth), notificationRoutes(db));
   app.use('/api', requireAuth(auth), collaborationRoutes(db));
+  app.use('/api', documentRoutes(db, options.storage));
   app.use('/api/clients', requireAuth(auth), clientRoutes(db));
   app.use('/api/projects', requireAuth(auth), projectRoutes(db));
   app.use('/api/lookups', requireAuth(auth), lookupRoutes(db));

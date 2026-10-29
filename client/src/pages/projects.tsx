@@ -1,4 +1,6 @@
 import { ProjectActivity } from '@/components/collaboration';
+import { ProjectDocuments } from '@/components/documents';
+import { DeadlineIndicator } from '@/components/deadline-indicator';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router';
@@ -410,8 +412,14 @@ export function ProjectDetailsPage() {
         )}
       </Card>
       <ProjectMilestones project={project} />
+      <DeadlineIndicator
+        dueDate={project.targetDate}
+        status={project.status}
+        archived={!!project.archivedAt}
+      />
       <ProjectFinance project={project} />
       <ProjectActivity projectId={project.id} />
+      <ProjectDocuments projectId={project.id} readOnly={!!project.archivedAt} />
       {editing && (
         <ProjectEditor
           project={project}

@@ -238,12 +238,19 @@ export function collaborationRoutes(db: PrismaClient) {
       AND: [
         {
           OR: [
-            { entityType: 'Project', action: { startsWith: 'project.' } },
+            {
+              entityType: 'Project',
+              OR: [{ action: { startsWith: 'project.' } }, { action: { startsWith: 'document.' } }],
+            },
             { entityType: 'Milestone', action: { startsWith: 'milestone.' } },
             {
               entityType: 'Task',
               entityId: { in: tasks.map((t) => t.id) },
-              OR: [{ action: { startsWith: 'task.' } }, { action: { startsWith: 'comment.' } }],
+              OR: [
+                { action: { startsWith: 'task.' } },
+                { action: { startsWith: 'comment.' } },
+                { action: { startsWith: 'document.' } },
+              ],
             },
             {
               entityType: 'ProjectTransaction',

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { TaskDiscussion } from '@/components/collaboration';
+import { DeadlineIndicator } from '@/components/deadline-indicator';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router';
 import { Plus, LayoutGrid, List } from 'lucide-react';
@@ -342,7 +343,19 @@ export function TasksPage() {
                     <TaskStatusControl task={r} saved={saved} />
                   ),
               },
-              { label: 'Due', render: (r) => r.dueDate.slice(0, 10) },
+              {
+                label: 'Due',
+                render: (r) => (
+                  <span>
+                    {r.dueDate.slice(0, 10)}
+                    <DeadlineIndicator
+                      dueDate={r.dueDate}
+                      status={r.status}
+                      archived={!!r.archivedAt}
+                    />
+                  </span>
+                ),
+              },
               { label: 'Actions', render: actions },
             ]}
           />

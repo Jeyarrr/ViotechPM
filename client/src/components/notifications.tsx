@@ -102,6 +102,11 @@ function NotificationList({ compact = false }: { compact?: boolean }) {
                 'milestone.updated',
                 'transaction.submitted',
                 'transaction.status_changed',
+                'comment.created',
+                'comment.mentioned',
+                'document.uploaded',
+                'reminder.upcoming',
+                'reminder.overdue',
               ].map((value) => (
                 <option key={value} value={value}>
                   {value.replaceAll('.', ' ').replaceAll('_', ' ')}

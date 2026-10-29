@@ -37,6 +37,30 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return (json as ApiEnvelope<T>).data;
 }
 export const api = {
+  async upload(path: string, file: File, onProgress: (percent: number) => void) {
+    const { csrfToken } = await request<{ csrfToken: string }>('/auth/csrf');
+    return new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${baseUrl}/api${path}`);
+      xhr.withCredentials = true;
+      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+      xhr.setRequestHeader('X-CSRF-Token', csrfToken);
+      xhr.setRequestHeader('X-File-Name', encodeURIComponent(file.name));
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
+      };
+      xhr.onerror = () => reject(new Error('Upload failed. Check your connection and try again.'));
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) return resolve();
+        try {
+          reject(new Error(JSON.parse(xhr.responseText).error?.message ?? 'Upload failed.'));
+        } catch {
+          reject(new Error('Upload failed. Check the file size and type.'));
+        }
+      };
+      xhr.send(file);
+    });
+  },
   async download(path: string, filename: string) {
     let response: Response;
     try {

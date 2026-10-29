@@ -116,3 +116,20 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.document-upload {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+}
+.document-upload input {
+  max-width: 100%;
+}
+.document-list li {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.document-list strong {
+  overflow-wrap: anywhere;
+}

@@ -54,6 +54,16 @@ test('task discussion persists and updates a second viewer in realtime', async (
     await page.goto(`/tasks/${task.id}`);
     await other.goto(`/tasks/${task.id}`);
     await expect(other.getByRole('heading', { name: 'Discussion', exact: true })).toBeVisible();
+    await page.getByLabel('Choose document').setInputFiles({
+      name: 'meeting-notes.txt',
+      mimeType: 'text/plain',
+      buffer: Buffer.from('Private meeting notes'),
+    });
+    await page.getByRole('button', { name: 'Upload document', exact: true }).click();
+    await expect(other.getByText('meeting-notes.txt', { exact: true })).toBeVisible();
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download', exact: true }).click();
+    expect((await downloadPromise).suggestedFilename()).toBe('meeting-notes.txt');
     await page.getByLabel('New comment', { exact: true }).fill('Realtime discussion message');
     await page.getByRole('button', { name: 'Post comment' }).click();
     await expect(other.getByText('Realtime discussion message', { exact: true })).toBeVisible();

@@ -1,3 +1,5 @@
+import { localStorage } from '../src/services/storage.service.js';
+import { runReminders } from '../src/services/reminder.service.js';
 import 'dotenv/config';
 import { randomUUID, randomBytes } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -135,6 +137,12 @@ beforeAll(async () => {
 afterAll(async () => {
   sockets.forEach((s) => s.disconnect());
   await runtime?.close();
+  const documents = await db.projectDocument.findMany({ where: { projectId } });
+  for (const item of documents)
+    await localStorage()
+      .remove(item.objectKey)
+      .catch(() => undefined);
+  await db.projectDocument.deleteMany({ where: { projectId } });
   await db.notification.deleteMany({ where: { projectId } });
   await db.auditLog.deleteMany({
     where: { OR: [{ projectId }, { actorId: { in: [userId, employeeId] } }] },
@@ -294,6 +302,101 @@ it('presents scoped, paginated project activity without private audit metadata',
   expect(comments.body.data.total).toBe(0); // Task is no longer assigned to this employee.
   const adminComments = await admin.get('/api/projects/' + projectId + '/activities?type=comment');
   expect(adminComments.body.data.total).toBeGreaterThan(0);
+});
+
+it('uploads private documents, rejects dangerous files and blocks archived downloads', async () => {
+  async function upload(name: string, data: Buffer, taskId?: string) {
+    const csrf = (await employee.get('/api/auth/csrf')).body.data.csrfToken;
+    return employee
+      .post('/api/projects/' + projectId + '/documents' + (taskId ? '?taskId=' + taskId : ''))
+      .set('Origin', origin)
+      .set('X-CSRF-Token', csrf)
+      .set('Content-Type', 'application/octet-stream')
+      .set('X-File-Name', encodeURIComponent(name))
+      .send(data);
+  }
+  const valid = await upload('notes.txt', Buffer.from('Private project notes'));
+  expect(valid.status).toBe(201);
+  expect(valid.body.data.objectKey).toBeUndefined();
+  const id = valid.body.data.id;
+  expect((await admin.get('/api/documents/' + id + '/download')).text).toBe(
+    'Private project notes',
+  );
+  expect((await request(runtime.app).get('/api/documents/' + id + '/download')).status).toBe(401);
+  expect((await upload('../secret.txt', Buffer.from('No'))).status).toBe(422);
+  expect((await upload('executable.png', Buffer.from('MZ invalid'))).status).toBe(422);
+  expect((await upload('large.txt', Buffer.alloc(10485761, 65))).status).toBe(413);
+  const task = await db.task.findFirstOrThrow({ where: { projectId } });
+  expect((await upload('task.txt', Buffer.from('Restricted'), task.id)).status).toBe(404);
+  expect((await write(employee, 'delete', '/api/documents/' + id)).status).toBe(200);
+  expect((await admin.get('/api/documents/' + id + '/download')).status).toBe(404);
+});
+
+it('storage failure leaves no document metadata', async () => {
+  const failed = await createApp(
+    {
+      NODE_ENV: 'test',
+      PORT: 4000,
+      CLIENT_ORIGIN: origin,
+      DATABASE_URL: url!,
+      SESSION_SECRET: randomBytes(48).toString('hex'),
+      TRUST_PROXY: '0',
+    },
+    db,
+    {
+      storage: {
+        put: async () => {
+          throw Error('Storage unavailable');
+        },
+        read: async () => Buffer.alloc(0),
+        remove: async () => {},
+      },
+    },
+  );
+  try {
+    const agent = request.agent(failed.app);
+    expect((await write(agent, 'post', '/api/auth/login', { email, password })).status).toBe(200);
+    const before = await db.projectDocument.count({ where: { projectId } });
+    const csrf = (await agent.get('/api/auth/csrf')).body.data.csrfToken;
+    const response = await agent
+      .post('/api/projects/' + projectId + '/documents')
+      .set('Origin', origin)
+      .set('X-CSRF-Token', csrf)
+      .set('Content-Type', 'application/octet-stream')
+      .set('X-File-Name', 'notes.txt')
+      .send(Buffer.from('Private notes'));
+    expect(response.status).toBe(500);
+    expect(await db.projectDocument.count({ where: { projectId } })).toBe(before);
+  } finally {
+    await failed.close();
+  }
+});
+it('deduplicates Manila reminders and excludes completed, archived and unauthorized work', async () => {
+  const task = await db.task.findFirstOrThrow({ where: { projectId } });
+  await db.task.update({
+    where: { id: task.id },
+    data: { dueDate: new Date('2026-10-31'), assigneeId: employeeId },
+  });
+  const now = new Date('2026-10-29T16:00:00Z');
+  await runReminders(db, now);
+  await runReminders(db, now);
+  expect(
+    await db.notification.count({ where: { taskId: task.id, type: 'reminder.upcoming' } }),
+  ).toBe(2);
+  await db.task.update({ where: { id: task.id }, data: { status: 'COMPLETED', completedAt: now } });
+  await runReminders(db, new Date('2026-11-02T00:00:00Z'));
+  expect(
+    await db.notification.count({ where: { taskId: task.id, type: 'reminder.overdue' } }),
+  ).toBe(0);
+  await db.task.update({
+    where: { id: task.id },
+    data: { status: 'TODO', completedAt: null, assigneeId: null, archivedAt: now },
+  });
+  await runReminders(db, new Date('2026-11-03T00:00:00Z'));
+  expect(
+    await db.notification.count({ where: { taskId: task.id, type: 'reminder.overdue' } }),
+  ).toBe(0);
+  await db.task.update({ where: { id: task.id }, data: { archivedAt: null } });
 });
 it('removes notification access and room subscriptions after membership removal', async () => {
   const socket = await connect(await socketSession(`employee-${email}`));
