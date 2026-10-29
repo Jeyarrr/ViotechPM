@@ -2,7 +2,7 @@
 
 ## Current checkpoint
 
-Checkpoints 4.1-4.4 implemented and verified. Phase 4 is complete; final Git delivery is being recorded.
+Checkpoints 4.1-4.4 implemented, verified, committed and pushed. Phase 4 is complete.
 
 ## Preserved starting state
 
@@ -79,3 +79,7 @@ Use isolated `viotechpm_test` for tests. Apply additive migrations only. Record 
 - Final frontend/backend builds, TypeScript, ESLint and formatting passed. Desktop/mobile analytics screenshots inspected; no mobile page overflow.
 - Actual local admin/admin login, Lawrence Arvin Violan display name, analytics API and logout verified successfully.
 - Full report: PHASE4_REPORT.md. Phase 5 storage/hosting/scanning/large-data hardening limitations documented.
+
+## Git delivery
+
+Checkpoint 4.4 committed and pushed as a099d1b. CI run 40918611598 was in progress at the delivery check. All local verification passed; the report records the full run plus focused browser rerun accurately.
