@@ -1,5 +1,6 @@
 node_modules/
 dist/
+build/
 coverage/
 .env
 .env.*
@@ -9,3 +10,28 @@ playwright-report/
 test-results/
 *.log
 server/src/generated/
+# Local databases, exports, and credentials
+*.dump
+*.backup
+*.bak
+*.sql.gz
+*.sqlite
+*.sqlite3
+*.db
+*.pem
+*.key
+*.p12
+*.pfx
+.pgpass
+.npmrc
+# Temporary files and editor caches
+tmp/
+temp/
+*.tmp
+*.swp
+*.swo
+.cache/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
