@@ -129,6 +129,19 @@ export function employeeRoutes(db: PrismaClient) {
           await references(tx, next.roleId, next.departmentId);
           const role = await tx.role.findUniqueOrThrow({ where: { id: next.roleId } });
           if (
+            (next.status !== 'ACTIVE' || next.roleId !== before.roleId) &&
+            (await tx.approvalStep.count({
+              where: {
+                assignedApproverId: id,
+                state: { in: ['PENDING', 'WAITING'] },
+                workflow: { status: 'ACTIVE' },
+              },
+            }))
+          )
+            conflict(
+              'Reassign this employee’s pending approval stages before changing their account access.',
+            );
+          if (
             before.role.key === 'super_admin' &&
             before.status === 'ACTIVE' &&
             (next.status !== 'ACTIVE' || role.key !== 'super_admin')

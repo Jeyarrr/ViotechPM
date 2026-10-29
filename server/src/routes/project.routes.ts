@@ -14,11 +14,13 @@ import {
 } from '../services/project.service.js';
 import { memberRoutes, memberSelect } from './member.routes.js';
 import { taskScope, taskInclude, today } from '../services/task.service.js';
+import { approvalPolicyRoutes } from './approval.routes.js';
 
 export function projectRoutes(db: PrismaClient) {
   const router = Router();
   router.use(requirePermission('projects:read'));
   router.use('/:id/members', memberRoutes(db));
+  router.use('/:id/approval-policy', approvalPolicyRoutes(db));
   router.get('/', async (req, res) => {
     const q = projectListSchema.parse(req.query);
     const where: Prisma.ProjectWhereInput = {
@@ -137,6 +139,19 @@ export function projectRoutes(db: PrismaClient) {
         include: projectInclude,
       });
       if (before.managerId !== item.managerId) {
+        if (
+          await tx.approvalStep.count({
+            where: {
+              assignedApproverId: before.managerId,
+              sequence: 1,
+              state: { in: ['PENDING', 'WAITING'] },
+              workflow: { status: 'ACTIVE', transaction: { projectId: id } },
+            },
+          })
+        )
+          conflict(
+            'Reassign pending project reviews to an active Super Admin before changing the manager.',
+          );
         await tx.projectMember.updateMany({
           where: { projectId: id, userId: before.managerId },
           data: { role: 'Member' },

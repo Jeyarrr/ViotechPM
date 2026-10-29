@@ -3,6 +3,8 @@ export type Permission =
   | 'projects:read'
   | 'projects:write'
   | 'tasks:read'
+  | 'transactions:read'
+  | 'transactions:write'
   | 'milestones:read'
   | 'clients:read'
   | 'clients:write'

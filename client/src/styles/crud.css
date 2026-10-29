@@ -298,6 +298,75 @@ select.input {
   align-items: center;
   gap: 10px;
 }
+.toolbar-date {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.toolbar-date label {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.toolbar-date .input {
+  width: 100%;
+  min-width: 0;
+}
+.operation-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.approval-steps {
+  padding: 0;
+  margin: 16px 0;
+  list-style: none;
+}
+.approval-steps > li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+.approval-steps > li > div {
+  flex: 1;
+  min-width: 140px;
+  overflow-wrap: anywhere;
+}
+.approval-steps strong {
+  font-size: 12px;
+}
+.approval-steps small,
+.workflow-attempt > small {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.workflow-history {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+}
+.workflow-attempt {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  padding: 16px;
+  min-width: 0;
+}
+.workflow-attempt h3 {
+  font-size: 13px;
+  margin: 0;
+}
+.snapshot-details summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 8px 0;
+}
 .budget-summary .expense-unavailable {
   font-size: 14px;
   color: var(--text-secondary);

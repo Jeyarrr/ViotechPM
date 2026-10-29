@@ -36,6 +36,15 @@ const MilestoneDetailsPage = lazy(() =>
   import('@/pages/milestones').then((m) => ({ default: m.MilestoneDetailsPage })),
 );
 const TasksPage = lazy(() => import('@/pages/tasks').then((m) => ({ default: m.TasksPage })));
+const TransactionsPage = lazy(() =>
+  import('@/pages/transactions').then((m) => ({ default: m.TransactionsPage })),
+);
+const TransactionDetailsPage = lazy(() =>
+  import('@/pages/transactions').then((m) => ({ default: m.TransactionDetailsPage })),
+);
+const ApprovalsPage = lazy(() =>
+  import('@/pages/approvals').then((m) => ({ default: m.ApprovalsPage })),
+);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -56,6 +65,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                   <Route path="tasks" element={<TasksPage />} />
                   <Route path="milestones" element={<MilestonesPage />} />
                   <Route path="milestones/:id" element={<MilestoneDetailsPage />} />
+                  <Route path="transactions" element={<TransactionsPage />} />
+                  <Route path="transactions/:id" element={<TransactionDetailsPage />} />
+                  <Route path="approvals" element={<ApprovalsPage />} />
                   {allNavigation
                     .filter(
                       (item) =>
@@ -67,6 +79,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                           '/team',
                           '/tasks',
                           '/milestones',
+                          '/transactions',
+                          '/approvals',
                         ].includes(item.path),
                     )
                     .map((item) => (

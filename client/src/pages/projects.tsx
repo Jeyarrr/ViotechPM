@@ -14,6 +14,7 @@ import { ProjectEditor, CategoryManager } from '@/components/shared/project-edit
 import { ProjectTeam } from '@/components/shared/project-team';
 import { TaskEditor } from '@/components/shared/task-editor';
 import { ProjectMilestones } from '@/components/shared/project-milestones';
+import { ApprovalPolicyEditor } from '@/components/shared/approval-controls';
 import type { ProjectRecord, PageResult } from '@/types/core';
 
 export function ProjectsPage() {
@@ -266,6 +267,8 @@ export function ProjectsPage() {
 
 export function ProjectDetailsPage() {
   const { id } = useParams();
+  const { data: currentUser } = useAuth();
+  const [approvalPolicyOpen, setApprovalPolicyOpen] = useState(false);
   const [editing, setEditing] = useState(false),
     [notice, setNotice] = useState('');
   const [teamOpen, setTeamOpen] = useState(false),
@@ -302,6 +305,16 @@ export function ProjectDetailsPage() {
         )}
       </div>
       <Notice message={notice} dismiss={() => setNotice('')} />
+      <div className="row-actions">
+        <Button asChild variant="outline" size="sm">
+          <Link to={`/transactions?projectId=${project.id}`}>Project transactions</Link>
+        </Button>
+        {currentUser?.role.key === 'super_admin' && !project.archivedAt && (
+          <Button variant="outline" size="sm" onClick={() => setApprovalPolicyOpen(true)}>
+            Approval policy
+          </Button>
+        )}
+      </div>
       <div className="project-detail-grid">
         <Card className="detail-panel">
           <div className="row-actions">
@@ -422,6 +435,13 @@ export function ProjectDetailsPage() {
           projectId={project.id}
           onClose={() => setTaskOpen(false)}
           onSaved={() => setNotice('Task saved.')}
+        />
+      )}
+      {approvalPolicyOpen && (
+        <ApprovalPolicyEditor
+          projectId={project.id}
+          onClose={() => setApprovalPolicyOpen(false)}
+          onSaved={() => setNotice('Approval policy saved.')}
         />
       )}
     </div>

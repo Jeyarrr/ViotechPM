@@ -16,10 +16,12 @@ import { errorHandler } from './middleware/error.js';
 import { overviewData } from './services/dashboard.service.js';
 import { clientRoutes } from './routes/client.routes.js';
 import { projectRoutes } from './routes/project.routes.js';
-import { lookupRoutes, categoryRoutes } from './routes/lookup.routes.js';
+import { lookupRoutes, categoryRoutes, transactionTypeRoutes } from './routes/lookup.routes.js';
 import { employeeRoutes } from './routes/employee.routes.js';
 import { taskRoutes } from './routes/task.routes.js';
 import { milestoneRoutes } from './routes/milestone.routes.js';
+import { transactionRoutes } from './routes/transaction.routes.js';
+import { approvalRoutes } from './routes/approval.routes.js';
 
 export async function createApp(config: AppConfig, db: PrismaClient) {
   const app = express();
@@ -95,6 +97,9 @@ export async function createApp(config: AppConfig, db: PrismaClient) {
   app.use('/api/employees', requireAuth(auth), employeeRoutes(db));
   app.use('/api/tasks', requireAuth(auth), taskRoutes(db));
   app.use('/api/milestones', requireAuth(auth), milestoneRoutes(db));
+  app.use('/api/transactions', requireAuth(auth), transactionRoutes(db));
+  app.use('/api/approvals', requireAuth(auth), approvalRoutes(db));
+  app.use('/api/transaction-types', requireAuth(auth), transactionTypeRoutes(db));
   app.get(
     '/api/dashboard',
     requireAuth(auth),

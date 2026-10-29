@@ -26,40 +26,47 @@ model Role {
 }
 
 model Department {
-  projects  Project[]
-  id        String    @id @default(uuid()) @db.Uuid
-  name      String    @unique @db.VarChar(100)
-  users     User[]
-  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  transactions ProjectTransaction[]
+  projects     Project[]
+  id           String               @id @default(uuid()) @db.Uuid
+  name         String               @unique @db.VarChar(100)
+  users        User[]
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@map("departments")
 }
 
 model User {
-  id                    String          @id @default(uuid()) @db.Uuid
-  name                  String          @db.VarChar(150)
-  email                 String          @unique @db.VarChar(254)
-  passwordHash          String          @map("password_hash")
-  roleId                String          @map("role_id") @db.Uuid
-  role                  Role            @relation(fields: [roleId], references: [id], onDelete: Restrict)
-  status                AccountStatus   @default(ACTIVE)
-  departmentId          String?         @map("department_id") @db.Uuid
-  department            Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  profileImage          String?         @map("profile_image")
-  createdAt             DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt             DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
-  lastLoginAt           DateTime?       @map("last_login_at") @db.Timestamptz(3)
-  auditLogs             AuditLog[]
-  createdClients        Client[]
-  managedProjects       Project[]       @relation("ProjectManager")
-  createdProjects       Project[]       @relation("ProjectCreator")
-  memberships           ProjectMember[] @relation("MemberUser")
-  assignedMembers       ProjectMember[] @relation("MemberAssigner")
-  assignedTasks         Task[]          @relation("TaskAssignee")
-  createdTasks          Task[]          @relation("TaskCreator")
-  responsibleMilestones Milestone[]     @relation("MilestoneResponsible")
-  createdMilestones     Milestone[]     @relation("MilestoneCreator")
+  requestedTransactions   ProjectTransaction[] @relation("TransactionRequester")
+  assignedApprovalSteps   ApprovalStep[]       @relation("StepApprover")
+  approvalDecisions       ApprovalDecision[]   @relation("DecisionApprover")
+  primaryApprovalPolicies ApprovalPolicy[]     @relation("PolicyPrimary")
+  finalApprovalPolicies   ApprovalPolicy[]     @relation("PolicyFinal")
+  editedApprovalPolicies  ApprovalPolicy[]     @relation("PolicyEditor")
+  id                      String               @id @default(uuid()) @db.Uuid
+  name                    String               @db.VarChar(150)
+  email                   String               @unique @db.VarChar(254)
+  passwordHash            String               @map("password_hash")
+  roleId                  String               @map("role_id") @db.Uuid
+  role                    Role                 @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  status                  AccountStatus        @default(ACTIVE)
+  departmentId            String?              @map("department_id") @db.Uuid
+  department              Department?          @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  profileImage            String?              @map("profile_image")
+  createdAt               DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt               DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  lastLoginAt             DateTime?            @map("last_login_at") @db.Timestamptz(3)
+  auditLogs               AuditLog[]
+  createdClients          Client[]
+  managedProjects         Project[]            @relation("ProjectManager")
+  createdProjects         Project[]            @relation("ProjectCreator")
+  memberships             ProjectMember[]      @relation("MemberUser")
+  assignedMembers         ProjectMember[]      @relation("MemberAssigner")
+  assignedTasks           Task[]               @relation("TaskAssignee")
+  createdTasks            Task[]               @relation("TaskCreator")
+  responsibleMilestones   Milestone[]          @relation("MilestoneResponsible")
+  createdMilestones       Milestone[]          @relation("MilestoneCreator")
 
   @@index([roleId])
   @@index([departmentId])
@@ -121,32 +128,34 @@ model ProjectCategory {
 }
 
 model Project {
+  transactions         ProjectTransaction[]
+  approvalPolicy       ApprovalPolicy?
   milestones           Milestone[]
   members              ProjectMember[]
   tasks                Task[]
-  id                   String          @id @default(uuid()) @db.Uuid
-  code                 String          @unique @db.VarChar(40)
-  name                 String          @db.VarChar(180)
-  description          String?         @db.VarChar(4000)
-  clientId             String          @map("client_id") @db.Uuid
-  client               Client          @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  categoryId           String          @map("category_id") @db.Uuid
-  category             ProjectCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  managerId            String          @map("manager_id") @db.Uuid
-  manager              User            @relation("ProjectManager", fields: [managerId], references: [id], onDelete: Restrict)
-  departmentId         String?         @map("department_id") @db.Uuid
-  department           Department?     @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  startDate            DateTime        @map("start_date") @db.Date
-  targetDate           DateTime        @map("target_date") @db.Date
-  actualCompletionDate DateTime?       @map("actual_completion_date") @db.Date
-  budget               Decimal?        @db.Decimal(16, 2)
-  priority             Priority        @default(MEDIUM)
-  status               ProjectStatus   @default(PLANNING)
-  createdById          String          @map("created_by_id") @db.Uuid
-  createdBy            User            @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  createdAt            DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt            DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
-  archivedAt           DateTime?       @map("archived_at") @db.Timestamptz(3)
+  id                   String               @id @default(uuid()) @db.Uuid
+  code                 String               @unique @db.VarChar(40)
+  name                 String               @db.VarChar(180)
+  description          String?              @db.VarChar(4000)
+  clientId             String               @map("client_id") @db.Uuid
+  client               Client               @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  categoryId           String               @map("category_id") @db.Uuid
+  category             ProjectCategory      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  managerId            String               @map("manager_id") @db.Uuid
+  manager              User                 @relation("ProjectManager", fields: [managerId], references: [id], onDelete: Restrict)
+  departmentId         String?              @map("department_id") @db.Uuid
+  department           Department?          @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  startDate            DateTime             @map("start_date") @db.Date
+  targetDate           DateTime             @map("target_date") @db.Date
+  actualCompletionDate DateTime?            @map("actual_completion_date") @db.Date
+  budget               Decimal?             @db.Decimal(16, 2)
+  priority             Priority             @default(MEDIUM)
+  status               ProjectStatus        @default(PLANNING)
+  createdById          String               @map("created_by_id") @db.Uuid
+  createdBy            User                 @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt            DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  archivedAt           DateTime?            @map("archived_at") @db.Timestamptz(3)
 
   @@index([archivedAt, status, targetDate])
   @@index([managerId])
@@ -245,6 +254,145 @@ model Milestone {
   @@index([responsibleId, dueDate])
   @@index([createdById])
   @@map("milestones")
+}
+
+enum TransactionStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  RETURNED_FOR_REVISION
+  CANCELLED
+}
+
+enum WorkflowStatus {
+  ACTIVE
+  APPROVED
+  REJECTED
+  RETURNED
+  CANCELLED
+}
+
+enum ApprovalStepState {
+  WAITING
+  PENDING
+  DECIDED
+  CANCELLED
+}
+
+enum ApprovalOutcome {
+  APPROVED
+  REJECTED
+  RETURNED
+}
+
+model TransactionType {
+  id           String               @id @default(uuid()) @db.Uuid
+  name         String               @unique @db.VarChar(100)
+  active       Boolean              @default(true)
+  transactions ProjectTransaction[]
+
+  @@map("transaction_types")
+}
+
+model ProjectTransaction {
+  id              String             @id @default(uuid()) @db.Uuid
+  reference       String             @unique @db.VarChar(50)
+  projectId       String             @map("project_id") @db.Uuid
+  project         Project            @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  typeId          String             @map("type_id") @db.Uuid
+  type            TransactionType    @relation(fields: [typeId], references: [id], onDelete: Restrict)
+  title           String             @db.VarChar(180)
+  description     String?            @db.VarChar(4000)
+  notes           String?            @db.VarChar(4000)
+  requestedAmount Decimal            @map("requested_amount") @db.Decimal(16, 2)
+  currency        String             @default("PHP") @db.VarChar(3)
+  requesterId     String             @map("requester_id") @db.Uuid
+  requester       User               @relation("TransactionRequester", fields: [requesterId], references: [id], onDelete: Restrict)
+  departmentId    String?            @map("department_id") @db.Uuid
+  department      Department?        @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  transactionDate DateTime           @map("transaction_date") @db.Date
+  status          TransactionStatus  @default(DRAFT)
+  submittedAt     DateTime?          @map("submitted_at") @db.Timestamptz(3)
+  approvedAt      DateTime?          @map("approved_at") @db.Timestamptz(3)
+  rejectedAt      DateTime?          @map("rejected_at") @db.Timestamptz(3)
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  workflows       ApprovalWorkflow[]
+
+  @@index([projectId, status, transactionDate])
+  @@index([requesterId, createdAt])
+  @@index([departmentId])
+  @@index([typeId])
+  @@map("project_transactions")
+}
+
+model ApprovalPolicy {
+  id                  String   @id @default(uuid()) @db.Uuid
+  projectId           String   @unique @map("project_id") @db.Uuid
+  project             Project  @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  primaryReviewerId   String?  @map("primary_reviewer_id") @db.Uuid
+  primaryReviewer     User?    @relation("PolicyPrimary", fields: [primaryReviewerId], references: [id], onDelete: Restrict)
+  finalReviewerId     String?  @map("final_reviewer_id") @db.Uuid
+  finalReviewer       User?    @relation("PolicyFinal", fields: [finalReviewerId], references: [id], onDelete: Restrict)
+  requireSecondReview Boolean  @default(true) @map("require_second_review")
+  updatedById         String   @map("updated_by_id") @db.Uuid
+  updatedBy           User     @relation("PolicyEditor", fields: [updatedById], references: [id], onDelete: Restrict)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([primaryReviewerId])
+  @@index([finalReviewerId])
+  @@index([updatedById])
+  @@map("approval_policies")
+}
+
+model ApprovalWorkflow {
+  id              String             @id @default(uuid()) @db.Uuid
+  transactionId   String             @map("transaction_id") @db.Uuid
+  transaction     ProjectTransaction @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+  attempt         Int
+  currentStage    Int                @default(1) @map("current_stage")
+  status          WorkflowStatus     @default(ACTIVE)
+  requestSnapshot Json               @map("request_snapshot")
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  steps           ApprovalStep[]
+
+  @@unique([transactionId, attempt])
+  @@index([status])
+  @@map("approval_workflows")
+}
+
+model ApprovalStep {
+  id                 String            @id @default(uuid()) @db.Uuid
+  workflowId         String            @map("workflow_id") @db.Uuid
+  workflow           ApprovalWorkflow  @relation(fields: [workflowId], references: [id], onDelete: Restrict)
+  sequence           Int
+  assignedApproverId String            @map("assigned_approver_id") @db.Uuid
+  assignedApprover   User              @relation("StepApprover", fields: [assignedApproverId], references: [id], onDelete: Restrict)
+  state              ApprovalStepState @default(WAITING)
+  decision           ApprovalDecision?
+
+  @@unique([workflowId, sequence])
+  @@unique([workflowId, assignedApproverId])
+  @@index([assignedApproverId, state])
+  @@map("approval_steps")
+}
+
+model ApprovalDecision {
+  id         String          @id @default(uuid()) @db.Uuid
+  stepId     String          @unique @map("step_id") @db.Uuid
+  step       ApprovalStep    @relation(fields: [stepId], references: [id], onDelete: Restrict)
+  approverId String          @map("approver_id") @db.Uuid
+  approver   User            @relation("DecisionApprover", fields: [approverId], references: [id], onDelete: Restrict)
+  outcome    ApprovalOutcome
+  comment    String?         @db.VarChar(2000)
+  timestamp  DateTime        @default(now()) @db.Timestamptz(3)
+
+  @@index([approverId, timestamp])
+  @@map("approval_decisions")
 }
 
 model AuditLog {

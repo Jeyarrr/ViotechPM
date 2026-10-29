@@ -11,6 +11,7 @@ import {
   ScrollText,
   Settings2,
   UserRound,
+  ArrowLeftRight,
 } from 'lucide-react';
 import type { Permission } from '@/types/api';
 
@@ -60,6 +61,13 @@ export const navigation: { label: string; items: NavigationItem[] }[] = [
   {
     label: 'Management',
     items: [
+      {
+        title: 'Transactions',
+        path: '/transactions',
+        icon: ArrowLeftRight,
+        permission: 'transactions:read',
+        description: 'Project business requests, review stages, and decision history.',
+      },
       {
         title: 'Clients',
         path: '/clients',

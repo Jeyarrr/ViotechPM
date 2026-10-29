@@ -22,6 +22,7 @@ export function lookupRoutes(db: PrismaClient) {
         'employees',
         'projects',
         'assignees',
+        'transaction-types',
       ])
       .parse(req.params.kind);
     const q = listSchema
@@ -71,6 +72,12 @@ export function lookupRoutes(db: PrismaClient) {
         db.user.findMany({ where, ...paging, select: { id: true, name: true } }),
         db.user.count({ where }),
       ]);
+    } else if (kind === 'transaction-types') {
+      const where = { ...search, ...(q.includeInactive === 'true' ? {} : { active: true }) };
+      [items, total] = await db.$transaction([
+        db.transactionType.findMany({ where, ...paging }),
+        db.transactionType.count({ where }),
+      ]);
     } else if (kind === 'categories') {
       const where = { ...search, ...(q.includeInactive === 'true' ? {} : { active: true }) };
       [items, total] = await db.$transaction([
@@ -117,6 +124,33 @@ export function categoryRoutes(db: PrismaClient) {
       const row = await tx.projectCategory.update({ where: { id }, data: input });
       await audit(tx, req.user!.id, 'category.updated', 'ProjectCategory', id, input);
       return row;
+    });
+    res.json({ data: item });
+  });
+  return router;
+}
+
+export function transactionTypeRoutes(db: PrismaClient) {
+  const router = Router();
+  const typeSchema = categorySchema.extend({ name: z.string().trim().min(2).max(100) });
+  router.use(requirePermission('system:manage'));
+  router.post('/', async (req, res) => {
+    const input = typeSchema.parse(req.body);
+    const item = await db.$transaction(async (tx) => {
+      const item = await tx.transactionType.create({ data: input });
+      await audit(tx, req.user!.id, 'transaction_type.created', 'TransactionType', item.id, input);
+      return item;
+    });
+    res.status(201).json({ data: item });
+  });
+  router.patch('/:id', async (req, res) => {
+    const id = idSchema.parse(req.params.id),
+      input = typeSchema.partial().parse(req.body);
+    const item = await db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM transaction_types WHERE id = ${id}::uuid FOR UPDATE`;
+      const item = await tx.transactionType.update({ where: { id }, data: input });
+      await audit(tx, req.user!.id, 'transaction_type.updated', 'TransactionType', id, input);
+      return item;
     });
     res.json({ data: item });
   });

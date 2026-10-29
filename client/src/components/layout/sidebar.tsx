@@ -55,6 +55,8 @@ export function Sidebar({
                         '/team',
                         '/tasks',
                         '/milestones',
+                        '/transactions',
+                        '/approvals',
                       ].includes(item.path) && (
                         <span className="soon-dot" aria-label="Coming in a future phase" />
                       )}
