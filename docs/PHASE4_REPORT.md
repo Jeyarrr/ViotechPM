@@ -90,7 +90,7 @@ All four checkpoint commits pushed normally to existing private Jeyarrr/ViotechP
 
 ## 20. GitHub CI status
 
-Checkpoint 4.4 CI run [40918611598](https://github.com/Jeyarrr/ViotechPM/actions/runs/40918611598) was in progress at the delivery-status check. Checkpoint 4.3 run 40912567979 passed; earlier 40911041660 and 40910081233 also passed. CI covers static checks, selected safety tests and builds; local PostgreSQL/browser suites are separately reported here.
+Final delivery commit f1884c0 passed CI run [40918710538](https://github.com/Jeyarrr/ViotechPM/actions/runs/40918710538), including types, lint, formatting, selected safety tests and both builds. The preceding run 40918611598 was superseded/cancelled by this newer successful run. Checkpoint 4.3 run 40912567979 passed; earlier 40911041660 and 40910081233 also passed. CI covers static checks, selected safety tests and builds; local PostgreSQL/browser suites are separately reported here.
 
 ## 21. Known issues or blockers
 
@@ -102,7 +102,7 @@ Checkpoint 4.4 CI run [40918611598](https://github.com/Jeyarrr/ViotechPM/actions
 
 ## 22. Remaining work
 
-No Phase 4 feature or local verification work remains. All checkpoint commits are pushed. Remote CI is running automatically; no production deployment has been performed.
+No Phase 4 feature or local verification work remains. All checkpoint commits are pushed. Final delivery CI passed; no production deployment has been performed.
 
 ## 23. Readiness for Phase 5
 

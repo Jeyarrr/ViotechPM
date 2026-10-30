@@ -82,4 +82,4 @@ Use isolated `viotechpm_test` for tests. Apply additive migrations only. Record 
 
 ## Git delivery
 
-Checkpoint 4.4 committed and pushed as a099d1b. CI run 40918611598 was in progress at the delivery check. All local verification passed; the report records the full run plus focused browser rerun accurately.
+Checkpoint 4.4 committed and pushed as a099d1b. Final delivery commit f1884c0 passed CI run 40918710538; the preceding run was superseded/cancelled. All local verification passed; the report records the full run plus focused browser rerun accurately.
