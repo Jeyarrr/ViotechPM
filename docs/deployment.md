@@ -1,10 +1,10 @@
 # Deployment guide: private testing
 
-Status: preparation only. No Vercel, Render or Neon project has been provisioned, no hosted URL exists, and no hosted acceptance test has passed. The user selected private testing and has no existing hosting projects or approved storage. Do not purchase services or export company data.
+Status: preparation only. No Vercel, Render or Neon project has been provisioned, no hosted URL exists, and no hosted acceptance test has passed. The user selected private testing. Vercel account access and repository import eligibility are now verified, but no ViotechPM hosting projects or approved storage exist yet. Do not purchase services or export company data.
 
 ## Required decisions before deployment
 
-Connect/create the user's provider accounts and grant repository access to the existing Jeyarrr/ViotechPM repository. Choose an isolated Neon branch and securely enter provider-issued connection strings. Approve durable private storage and a scheduling plan. Choose an access restriction mechanism and frontend/API domain arrangement, then verify actual browser authentication before admitting testers. App login is not equivalent to network-private hosting; the default Render web-service URL is internet reachable. Configure approved network/access controls separately, or leave the service unprovisioned.
+Vercel repository access is granted. Complete Render/Neon account connections and grant only the repository access needed for the existing Jeyarrr/ViotechPM repository. Choose an isolated Neon branch and securely enter provider-issued connection strings. Approve durable private storage and a scheduling plan. Choose an access restriction mechanism and frontend/API domain arrangement, then verify actual browser authentication before admitting testers. App login is not equivalent to network-private hosting; the default Render web-service URL is internet reachable. Configure approved network/access controls separately, or leave the service unprovisioned.
 
 ## Neon
 

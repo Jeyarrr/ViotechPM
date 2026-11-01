@@ -203,6 +203,7 @@ Actual login page captured during local acceptance verification, with blank cred
 
 ### Hosting preparation
 
+- [Phase 5 verification report and remaining blockers](docs/PHASE5_REPORT.md)
 - [Deployment steps and hosted acceptance checklist](docs/deployment.md)
 - [Local, staging and production environment variables](docs/environment.md)
 - [Production database migrations, backup and restore](docs/database-production.md)

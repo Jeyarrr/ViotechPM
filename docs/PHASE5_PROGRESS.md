@@ -22,15 +22,15 @@ Starting main: a5443a6, clean tree and synchronized remote. Prior delivery CI 40
 
 ## Baseline
 
-Fresh backend run: 94/94 passed, seven files, 58.53 seconds. Full 40-case browser baseline is running before application changes. Production dependency audit: zero reported vulnerabilities. Current dependency versions recorded in ignored audit output; no automatic major upgrades.
+Fresh backend run: 94/94 passed, seven files, 58.53 seconds. Full 40-case browser baseline passed before frontend integration. Production dependency audit: zero reported vulnerabilities. Current dependency versions recorded in ignored audit output; no automatic major upgrades.
 
 ## Checkpoints
 
 1. 5.1 audit/security: complete locally; committed/pushed as f0afa9e.
 2. 5.2 database/performance: complete locally; committed/pushed as 345cf0a.
-3. 5.3 deployment configuration: implemented; final checks in progress.
+3. 5.3 deployment configuration: prepared and verified; committed/pushed as 94daab6.
 4. 5.4 actual deployment: blocked on account connections, target provisioning, secure secrets and approved durable storage/domain arrangement.
-5. 5.5 final QA/docs: pending; hosted verification cannot be claimed without actual deployments.
+5. 5.5 final QA/docs: local and CI verification complete; hosted verification remains blocked.
 
 ## References checked
 
@@ -71,3 +71,19 @@ Added deployment, environment, database, security and operations guides. Expande
 Local results so far: 105/105 backend tests, types and both builds passed. Compiled API bound the hosting interface and returned readiness 200. Windows process termination is verified; graceful SIGTERM semantics will be verified by Linux CI. Full 44-case browser suite and updated CI are pending. GitHub API now reports repository visibility as public (2026-11-01); visibility was not changed by this work. Hosting intent remains private testing.
 
 Deployment-preparation static checks are now clean: final lint and repository formatting passed after fixing the smoke-test cleanup rule. Hosted API build guard rejected five invalid origins and accepted a valid HTTPS origin. Full responsive regression continues independently; it is not yet reported as passed. Checkpoint 5.3 configuration is ready for review but deliberately not deployable without the documented external resources.
+
+## Vercel agent onboarding (user-requested)
+
+Fetched and followed https://vercel.com/get-started.md. Installed Vercel CLI 65.9.0 globally; `vercel whoami`, team listing and project listing succeeded. The Jayr Portfolio Hobby team is accessible. Installed the user-scoped Vercel plugin through its documented installer; the status command files are present. Added the shared official https://mcp.vercel.com endpoint to Codex user configuration and the user completed OAuth successfully. No confirmation settings were weakened.
+
+New plugin/MCP tools are not exposed in this already-running agent session; the installer explicitly requires an agent reload. Therefore authenticated MCP search/list_teams verification remains pending reload, even though CLI account access and OAuth are verified. No ViotechPM project was created/linked during global onboarding, as the guide instructs. No deployment or paid resource was created. Vercel repository import access is now confirmed by the user; Render/Neon/storage/backend-URL blockers remain.
+
+Fresh production dependency audit again reports zero vulnerabilities. A read-only Argon2 comparison confirms the local test password and the requested Lawrence Arvin Violan name are preserved, without printing stored hashes or credentials.
+
+## Final independent verification (2026-11-01)
+
+Local: 105/105 backend tests, 44/44 browser cases (13.4 minutes), TypeScript, lint, formatting, both builds and compiled runtime readiness passed. Expanded Linux CI passed on 94daab60837241e36f57c6d272151dfdedadeb1b: 105 backend tests, 44 browser cases (5.7 minutes), builds/static checks and graceful SIGTERM. Verified run: https://github.com/Jeyarrr/ViotechPM/actions/runs/41289783707.
+
+Checkpoint 5.4 is not complete: Vercel account/repository access is now available, but no ViotechPM hosting project exists and Render/Neon, secure provisioning, domain/access arrangement and durable storage remain unconfigured. Hosted authentication/WSS/reminders/storage/restore tests have not run. No paid resources, automatic deployment, local-account changes or company-data export occurred. The final report distinguishes these external blockers from completed independent implementation.
+
+Remaining tooling step: reload the agent to expose the newly installed Vercel plugin/MCP tools, then run the guide's authenticated MCP documentation/team checks. CLI account/team access and MCP OAuth already succeeded. Continue hosting setup only with real provider-issued values and approved resources.
