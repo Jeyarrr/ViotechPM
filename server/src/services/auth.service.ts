@@ -4,6 +4,7 @@ import type { PrismaClient, Prisma } from '../generated/prisma/client.js';
 import { permissionsFor } from '../config/permissions.js';
 import { publicUserSelect, userRepository } from '../repositories/user.repository.js';
 import { AppError } from '../utils/errors.js';
+import { productionPasswordAllowed } from './production-security.service.js';
 
 type SelectedUser = Prisma.UserGetPayload<{ select: typeof publicUserSelect }>;
 export type PublicUser = Omit<SelectedUser, 'status' | 'createdAt' | 'lastLoginAt'> & {
@@ -29,7 +30,7 @@ export function serializeUser(user: SelectedUser): PublicUser {
   };
 }
 
-export async function createAuthService(db: PrismaClient) {
+export async function createAuthService(db: PrismaClient, production = false) {
   const users = userRepository(db);
   // Unknown accounts take the same password verification path as known accounts.
   const dummyHash = await argon2.hash(randomBytes(32), passwordOptions);
@@ -37,11 +38,47 @@ export async function createAuthService(db: PrismaClient) {
     async authenticate(email: string, password: string) {
       const user = await users.findCredentials(email);
       const valid = await argon2.verify(user?.passwordHash ?? dummyHash, password);
-      if (!user || !valid || user.status !== 'ACTIVE') {
+      if (
+        !user ||
+        !valid ||
+        user.status !== 'ACTIVE' ||
+        (production && !productionPasswordAllowed(password))
+      ) {
         await db.auditLog.create({ data: { action: 'auth.login.failed', entityType: 'User' } });
         throw new AppError(401, 'INVALID_CREDENTIALS', 'The email or password is incorrect.');
       }
       return user.id;
+    },
+    async changePassword(id: string, currentPassword: string, newPassword: string) {
+      if (!productionPasswordAllowed(newPassword))
+        throw new AppError(
+          422,
+          'PASSWORD_POLICY',
+          'Use a unique password of 16–128 characters; avoid common or repetitive passwords.',
+        );
+      const passwordHash = await argon2.hash(newPassword, passwordOptions);
+      await db.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM users WHERE id = ${id}::uuid FOR UPDATE`;
+        const user = await tx.user.findUnique({ where: { id } });
+        if (
+          !user ||
+          user.status !== 'ACTIVE' ||
+          !(await argon2.verify(user.passwordHash, currentPassword))
+        )
+          throw new AppError(403, 'INVALID_CURRENT_PASSWORD', 'The current password is incorrect.');
+        if (await argon2.verify(user.passwordHash, newPassword))
+          throw new AppError(422, 'PASSWORD_REUSED', 'Choose a different password.');
+        await tx.user.update({ where: { id }, data: { passwordHash } });
+        await tx.$executeRaw`DELETE FROM sessions WHERE sess->>'userId' = ${id}`;
+        await tx.auditLog.create({
+          data: {
+            actorId: id,
+            entityType: 'User',
+            entityId: id,
+            action: 'security.password_changed',
+          },
+        });
+      });
     },
     async currentUser(id: string) {
       const user = await users.findPublic(id);

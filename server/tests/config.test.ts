@@ -24,8 +24,17 @@ describe('configuration and permissions', () => {
   it('requires HTTPS origins in production', () => {
     expect(() => parseEnv({ ...valid, NODE_ENV: 'production' })).toThrow('HTTPS');
     expect(
-      parseEnv({ ...valid, NODE_ENV: 'production', CLIENT_ORIGIN: 'https://pm.viotech.test' })
-        .NODE_ENV,
+      parseEnv({
+        ...valid,
+        NODE_ENV: 'production',
+        CLIENT_ORIGIN: 'https://pm.viotech.test',
+        SESSION_SECRET: '0123456789abcdefABCDEF'.repeat(3),
+        DATABASE_URL: 'postgresql://user:private@db-pooler.example.test/app?sslmode=require',
+        DIRECT_DATABASE_URL: 'postgresql://user:private@db.example.test/app?sslmode=require',
+        PRODUCTION_READY_ACK: 'true',
+        UPLOAD_STORAGE: 'durable-local',
+        UPLOAD_DIRECTORY: '/var/private/uploads',
+      }).NODE_ENV,
     ).toBe('production');
   });
   it('uses least privilege for all five roles and denies unknown roles', () => {

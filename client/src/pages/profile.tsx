@@ -2,6 +2,7 @@ import { Mail, Building2, ShieldCheck, CalendarDays, UserRound } from 'lucide-re
 import { useAuth } from '@/hooks/use-auth';
 import { initials } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
+import { PasswordChange } from '@/components/password-change';
 
 export function ProfilePage() {
   const { data: user } = useAuth();
@@ -57,6 +58,7 @@ export function ProfilePage() {
           To update your account details, contact your system administrator.
         </div>
       </Card>
+      <PasswordChange />
     </div>
   );
 }

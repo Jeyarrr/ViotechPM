@@ -13,6 +13,19 @@ const schema = z.object({
     .min(32)
     .refine((v) => !v.includes('REPLACE'), 'Set a random session secret'),
   TRUST_PROXY: z.enum(['0', '1']).default('0'),
+  COOKIE_SAME_SITE: z.enum(['lax', 'none']).optional(),
+  HOST: z.enum(['127.0.0.1', '0.0.0.0']).optional(),
+  DIRECT_DATABASE_URL: z
+    .string()
+    .regex(/^postgres(ql)?:\/\//)
+    .optional(),
+  REALTIME_DATABASE_URL: z
+    .string()
+    .regex(/^postgres(ql)?:\/\//)
+    .optional(),
+  PRODUCTION_READY_ACK: z.enum(['true', 'false']).optional(),
+  UPLOAD_STORAGE: z.enum(['local', 'durable-local']).optional(),
+  UPLOAD_DIRECTORY: z.string().optional(),
 });
 
 export type AppConfig = z.infer<typeof schema>;
@@ -28,5 +41,40 @@ export function parseEnv(input: NodeJS.ProcessEnv): AppConfig {
   if (parsed.data.NODE_ENV === 'production' && !parsed.data.CLIENT_ORIGIN.startsWith('https://')) {
     throw new Error('CLIENT_ORIGIN must use HTTPS in production');
   }
-  return parsed.data;
+  const config = parsed.data;
+  if (config.COOKIE_SAME_SITE === 'none' && config.NODE_ENV !== 'production')
+    throw Error('COOKIE_SAME_SITE=none requires production HTTPS.');
+  if (config.NODE_ENV === 'production') {
+    if (config.SESSION_SECRET.length < 48 || new Set(config.SESSION_SECRET).size < 16)
+      throw Error('SESSION_SECRET must be a strong random production secret.');
+    if (config.PRODUCTION_READY_ACK !== 'true')
+      throw Error('PRODUCTION_READY_ACK must confirm the production checklist.');
+    for (const [key, value] of [
+      ['DATABASE_URL', config.DATABASE_URL],
+      ['DIRECT_DATABASE_URL', config.DIRECT_DATABASE_URL],
+      ['REALTIME_DATABASE_URL', config.REALTIME_DATABASE_URL ?? config.DIRECT_DATABASE_URL],
+    ] as const) {
+      let url: URL;
+      try {
+        url = new URL(value ?? '');
+      } catch {
+        throw Error(key + ' must be a valid production connection.');
+      }
+      if (
+        ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) ||
+        !['require', 'verify-full'].includes(url.searchParams.get('sslmode') ?? '') ||
+        (key !== 'DATABASE_URL' && url.hostname.includes('-pooler'))
+      )
+        throw Error(
+          key + ' requires a remote TLS connection; listeners/migrations must use a direct host.',
+        );
+    }
+    if (
+      config.UPLOAD_STORAGE !== 'durable-local' ||
+      !config.UPLOAD_DIRECTORY ||
+      !config.UPLOAD_DIRECTORY.startsWith('/')
+    )
+      throw Error('Durable private document storage must be configured before production startup.');
+  }
+  return config;
 }

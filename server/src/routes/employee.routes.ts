@@ -10,6 +10,7 @@ import { publicUserSelect } from '../repositories/user.repository.js';
 import { audit, changedFields, conflict, notFound, pageResult } from '../services/core.service.js';
 import { projectScope } from '../services/project.service.js';
 import { AppError } from '../utils/errors.js';
+import { productionPasswordAllowed } from '../services/production-security.service.js';
 
 const employeeSchema = z
   .object({
@@ -34,7 +35,7 @@ const querySchema = listSchema
   })
   .strict();
 
-export function employeeRoutes(db: PrismaClient) {
+export function employeeRoutes(db: PrismaClient, production = false) {
   const router = Router();
   router.use(requirePermission('team:read'));
   const selectFor = (user: NonNullable<Express.Request['user']>) =>
@@ -92,6 +93,12 @@ export function employeeRoutes(db: PrismaClient) {
   }
   router.post('/', requirePermission('system:manage'), async (req, res) => {
     const { password, ...input } = createSchema.parse(req.body);
+    if (production && !productionPasswordAllowed(password))
+      throw new AppError(
+        422,
+        'PASSWORD_POLICY',
+        'Use a unique password of 16–128 characters; avoid common or repetitive passwords.',
+      );
     const passwordHash = await argon2.hash(password, passwordOptions);
     const item = await db.$transaction(async (tx) => {
       await references(tx, input.roleId, input.departmentId);

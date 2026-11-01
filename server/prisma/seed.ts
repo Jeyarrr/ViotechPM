@@ -2,6 +2,10 @@ import 'dotenv/config';
 import { createDatabase } from '../src/config/database.js';
 import { bootstrap } from '../src/services/bootstrap.service.js';
 
+if (process.env.NODE_ENV === 'production')
+  throw new Error(
+    'Production seeding is disabled. Use the reviewed administrator provisioning procedure.',
+  );
 if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required.');
 const db = createDatabase(process.env.DATABASE_URL);
 try {

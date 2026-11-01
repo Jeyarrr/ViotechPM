@@ -2,11 +2,13 @@ import { parseEnv } from './config/env.js';
 import { createDatabase } from './config/database.js';
 import { createApp } from './app.js';
 import { startReminderScheduler } from './services/reminder.service.js';
+import { assertProductionAccounts } from './services/production-security.service.js';
 
 try {
   const config = parseEnv(process.env);
   const db = createDatabase(config.DATABASE_URL);
   await db.$connect();
+  if (config.NODE_ENV === 'production') await assertProductionAccounts(db);
   const runtime = await createApp(config, db);
   const stopReminders =
     config.NODE_ENV !== 'test' && process.env.REMINDERS_ENABLED !== 'false'

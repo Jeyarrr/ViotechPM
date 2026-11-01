@@ -8,7 +8,7 @@ import argon2 from 'argon2';
 import { createDatabase } from '../src/config/database.js';
 import { createApp } from '../src/app.js';
 import { bootstrap } from '../src/services/bootstrap.service.js';
-import { passwordOptions } from '../src/services/auth.service.js';
+import { createAuthService, passwordOptions } from '../src/services/auth.service.js';
 import type { AppConfig } from '../src/config/env.js';
 
 const testUrl = process.env.TEST_DATABASE_URL;
@@ -365,4 +365,41 @@ describe('PostgreSQL-backed authentication', () => {
       await limited.close();
     }
   });
+});
+
+it('rejects a real weak database credential in production while preserving development access', async () => {
+  const user = await db.user.findUniqueOrThrow({ where: { email } });
+  try {
+    await db.user.update({
+      where: { id: user.id },
+      data: { passwordHash: await argon2.hash('admin', passwordOptions) },
+    });
+    const production = await createAuthService(db, true);
+    const development = await createAuthService(db, false);
+    await expect(production.authenticate(email, 'admin')).rejects.toMatchObject({ status: 401 });
+    await expect(development.authenticate(email, 'admin')).resolves.toBe(user.id);
+  } finally {
+    await db.user.update({ where: { id: user.id }, data: { passwordHash: user.passwordHash } });
+  }
+});
+it('changes passwords only with the current password and revokes every existing session', async () => {
+  const first = request.agent(runtime.app),
+    second = request.agent(runtime.app);
+  await signIn(first);
+  await signIn(second);
+  const token = await csrf(first),
+    replacement = randomBytes(24).toString('base64url');
+  const change = (currentPassword: string, newPassword: string) =>
+    first
+      .post('/api/auth/password')
+      .set('Origin', config.CLIENT_ORIGIN)
+      .set('X-CSRF-Token', token)
+      .send({ currentPassword, newPassword });
+  expect((await change('wrong', replacement)).status).toBe(403);
+  expect((await change(password, 'admin')).status).toBe(422);
+  expect((await change(password, replacement)).status).toBe(200);
+  await first.get('/api/auth/me').expect(401);
+  await second.get('/api/auth/me').expect(401);
+  expect((await signIn(request.agent(runtime.app), email, password)).status).toBe(401);
+  expect((await signIn(request.agent(runtime.app), email, replacement)).status).toBe(200);
 });

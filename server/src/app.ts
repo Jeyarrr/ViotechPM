@@ -39,7 +39,7 @@ export async function createApp(
   options: { storage?: PrivateStorage } = {},
 ) {
   const app = express();
-  const auth = await createAuthService(db);
+  const auth = await createAuthService(db, config.NODE_ENV === 'production');
   const pool = new pg.Pool({
     connectionString: config.DATABASE_URL,
     connectionTimeoutMillis: 5000,
@@ -107,11 +107,17 @@ export async function createApp(
     resave: false,
     saveUninitialized: false,
     rolling: false,
-    cookie: { httpOnly: true, secure, sameSite: 'lax', maxAge: 8 * 60 * 60 * 1000, path: '/' },
+    cookie: {
+      httpOnly: true,
+      secure,
+      sameSite: config.COOKIE_SAME_SITE ?? 'lax',
+      maxAge: 8 * 60 * 60 * 1000,
+      path: '/',
+    },
   });
   app.use(sessionMiddleware);
   app.use(protectMutations(allowedOrigins));
-  app.use('/api/auth', authRoutes(auth, db, secure));
+  app.use('/api/auth', authRoutes(auth, db, secure, config.COOKIE_SAME_SITE));
   app.use('/api/notifications', requireAuth(auth), notificationRoutes(db));
   app.use(
     [
@@ -130,7 +136,7 @@ export async function createApp(
   app.use('/api/projects', requireAuth(auth), projectRoutes(db));
   app.use('/api/lookups', requireAuth(auth), lookupRoutes(db));
   app.use('/api/project-categories', requireAuth(auth), categoryRoutes(db));
-  app.use('/api/employees', requireAuth(auth), employeeRoutes(db));
+  app.use('/api/employees', requireAuth(auth), employeeRoutes(db, secure));
   app.use('/api/tasks', requireAuth(auth), taskRoutes(db));
   app.use('/api/milestones', requireAuth(auth), milestoneRoutes(db));
   app.use('/api/transactions', requireAuth(auth), transactionRoutes(db));
@@ -169,7 +175,7 @@ export async function createApp(
     allowedOrigins,
     db,
     auth,
-    config.DATABASE_URL,
+    config.REALTIME_DATABASE_URL ?? config.DIRECT_DATABASE_URL ?? config.DATABASE_URL,
   );
   return {
     app,
