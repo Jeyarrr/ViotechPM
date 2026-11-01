@@ -24,4 +24,14 @@ With documents disabled, the backend does not initialize document storage or run
 
 Keep `REMINDERS_ENABLED=false` because free hosting can sleep. Set `CLIENT_ORIGIN` to the actual Vercel frontend HTTPS origin, with no trailing slash. For separate Vercel/Render provider domains use `COOKIE_SAME_SITE=none`; browser third-party cookie restrictions may still affect login and must be checked on the hosted app. Set `TRUST_PROXY=1` for Render's HTTPS proxy. Set `PRODUCTION_READY_ACK=true` only when the actual origin and required variables have been set.
 
-Verification: full build passed; compiled production API tested against Neon with the HTTPS proxy headers, existing admin/admin login, secure HttpOnly cookies, persisted session, feature flag response, disabled document GET/POST and session revocation on logout. This is a local production-mode check, not a claim of a completed Render deployment.
+Deployed and verified on November 2, 2026 (Asia/Manila):
+
+- Frontend: https://viotechpm.vercel.app (Vercel deployment `dpl_CE6VrGcz8q6ftC3FK8V9YX4Jsgvw`, READY).
+- Backend: https://viotechpm-api.onrender.com (Render service `srv-dbjn3i142hec73dh94ng`, Free, Singapore; deploy `dep-dbjn3ip42hec73dh96u0`, live).
+- Deployed application commit: `ded3aa890f69aaba0ccd5fa981da7022e30c2d25`.
+- Render build successful; Vercel build completed with Vite reporting `built in 9.81s`.
+- Live health reports database connected; readiness reports ready.
+- Live admin/admin login returns Lawrence Arvin Violan. Exact-origin CORS, secure session, disabled documents and logout session revocation passed.
+- Chromium browser test against the actual Vercel URL passed login, dashboard rendering and authenticated reload using Render and Neon.
+
+The canonical frontend is reachable without Vercel authentication; application login is required. This is an internet-reachable test deployment, not network-private hosting. Documents and scheduled reminders remain disabled. Render's Free service can sleep when idle. The MCP creation interface did not expose a health-check-path setting; `/api/ready` was verified directly, while Render uses its default service check. Full business-workflow, multi-browser and recovery acceptance checks remain separate from this deployment smoke test.

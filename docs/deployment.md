@@ -1,6 +1,6 @@
 # Deployment guide: private testing
 
-Status: preparation only. No Vercel, Render or Neon project has been provisioned, no hosted URL exists, and no hosted acceptance test has passed. The user selected private testing. Vercel account access and repository import eligibility are now verified, but no ViotechPM hosting projects or approved storage exist yet. Do not purchase services or export company data.
+Status (November 2, 2026): the user-authorized free test deployment is live at https://viotechpm.vercel.app with the Render backend at https://viotechpm-api.onrender.com and the existing Neon database. Hosted browser login, dashboard reload, API sessions and disabled documents passed. See [the deployment record](RENDER_FREE_TEST.md) for exact resources and verification. The user selected documents disabled and the existing test administrator login. This internet-reachable test configuration does not establish network-private or full production readiness. The remaining sections describe the stricter full-production requirements and broader acceptance checks, not blockers to the explicitly selected test mode.
 
 ## Required decisions before deployment
 
