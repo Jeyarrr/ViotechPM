@@ -18,7 +18,7 @@ Socket.IO is deferred until authenticated mounting. Entry bundle decreased from 
 
 ### 4. Frontend deployment
 
-Root vercel.json prepares Vite workspace installation/build/output, SPA routing and response headers. Hosting builds require a remote HTTPS API origin. Five invalid origin configurations were rejected and a valid HTTPS origin accepted locally. Git deployment is disabled. Vercel account access and repository import eligibility are now confirmed. CLI 65.9.0 is authenticated; the user-scope plugin and official shared MCP endpoint are installed, and OAuth succeeded. This session requires an agent reload to expose the new MCP tools; authenticated MCP list_teams/search verification is pending. No ViotechPM Vercel project or deployment exists.
+Root vercel.json prepares Vite workspace installation/build/output, SPA routing and response headers. Hosting builds require a remote HTTPS API origin. Five invalid origin configurations were rejected and a valid HTTPS origin accepted locally. Git deployment is disabled. Vercel account access and repository import eligibility are now confirmed. CLI 65.9.0 is authenticated; the user-scope plugin and official shared MCP endpoint are installed, and OAuth succeeded. After reload and user-approved team access, MCP documentation search, authenticated team listing and scoped ViotechPM project lookup succeeded. Vercel agent onboarding is complete. No ViotechPM Vercel project or deployment exists.
 
 ### 5. Backend deployment
 
@@ -76,7 +76,7 @@ Regression covers production password/configuration gates, weak database credent
 
 ### 18. Database integrity verification
 
-Protected .env/login/tokens/logo hashes match the pre-work snapshot. Nineteen of 21 business tables match exactly. One successful local login at 2026-10-31 18:58:52 UTC added an audit record and changed user login/update timestamps after the snapshot; these legitimate records were not reverted. No business-data reset/export or password/name modification was performed on the local application account. Read-only checks independently confirmed the requested account name and existing development password still match.
+Protected .env/login/tokens/logo hashes match the pre-work snapshot. Nineteen of 21 business tables match exactly. Subsequent local login/logout activity on October 31 and November 1 added authentication audit records and changed user login/update timestamps after the snapshot; these legitimate records were not reverted. No business-data reset/export or password/name modification was performed on the local application account. Read-only checks independently confirmed the requested account name and existing development password still match.
 
 ### 19. Responsive UI verification
 
