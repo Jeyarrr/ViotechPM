@@ -53,3 +53,11 @@ Fresh baseline: 94/94 backend and 40/40 browser cases (12.8 minutes). Security i
 Checkpoint 5.1 verification complete: 102 backend tests passed; all four new password browser cases passed; frontend/backend builds, types, lint and formatting passed. Security-checkpoint client entry bundle: 493.38 kB raw / 159.05 kB gzip.
 
 Preservation review: protected .env, login source, design tokens and all logo assets match their original SHA-256 hashes. Nineteen of 21 business tables match the earlier snapshot exactly. The local users/audit_logs tables differ by a successful login recorded at 2026-10-31 18:58:52 UTC (before this resumed verification), which updated last_login_at/updated_at and added one audit entry. No attempt was made to roll back legitimate authentication activity. Thirteen migrations are applied; all database constraints are validated; all three money columns remain NUMERIC(16,2). No business data was exported or reset.
+
+## Checkpoint 5.2 verified (2026-11-01)
+
+Prisma schema validation and migration status passed: 13 applied migrations, no pending schema changes. Production database guide records pooled runtime/direct CLI and LISTEN requirements, safe migration, backup/restore and rollback procedures. No Neon database exists yet and no migration/export was performed against hosting.
+
+Socket.IO now loads after authentication with cancellation-safe cleanup. Client entry bundle decreased from 493.38 kB / 159.05 kB gzip to 451.65 kB / 145.98 kB gzip (8.46% raw, 8.22% gzip); the deferred socket chunk is 41.78 kB. This measures bundle transfer, not hosted latency. Reminder reads are batched in 100-project pages; the 50-project regression uses four model reads rather than 151, preserving per-project active-recipient scope. Existing reminder deduplication tests still pass. Empty local project tables cannot establish representative large-data query latency; EXPLAIN used the existing project index and no speculative indexes were added.
+
+Verification: 103/103 backend tests; eight collaboration/workspace browser cases across four viewports; both builds, TypeScript and lint passed. Formatting initially flagged the new performance test, which was reformatted and rechecked successfully. Large-scale analytics/load benchmarking remains a pre-company-rollout task.

@@ -34,74 +34,101 @@ export async function runReminders(
         { locked: boolean }[]
       >`SELECT pg_try_advisory_xact_lock(57420304) AS locked`;
       if (!lock[0]?.locked) return { created: 0, day };
-      const projects = await tx.project.findMany({
-        where: { archivedAt: null, status: { notIn: ['COMPLETED', 'CANCELLED'] } },
-        include: { members: { select: { userId: true } } },
-      });
       let created = 0;
-      for (const project of projects) {
+      let cursor: string | undefined;
+      while (true) {
+        const projects = await tx.project.findMany({
+          where: { archivedAt: null, status: { notIn: ['COMPLETED', 'CANCELLED'] } },
+          include: { members: { select: { userId: true } } },
+          orderBy: { id: 'asc' },
+          take: 100,
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+        });
+        if (!projects.length) break;
+        const ids = projects.map((project) => project.id);
         const candidates = await tx.user.findMany({
           where: {
-            id: { in: [project.managerId, ...project.members.map((m) => m.userId)] },
+            id: {
+              in: [
+                ...new Set(
+                  projects.flatMap((project) => [
+                    project.managerId,
+                    ...project.members.map((member) => member.userId),
+                  ]),
+                ),
+              ],
+            },
             status: 'ACTIVE',
           },
+          select: { id: true },
         });
-        const active = new Set(candidates.map((u) => u.id));
-        const [tasks, milestones] = await Promise.all([
-          tx.task.findMany({
-            where: { projectId: project.id, archivedAt: null, status: { not: 'COMPLETED' } },
-            select: { id: true, title: true, dueDate: true, assigneeId: true },
-          }),
-          tx.milestone.findMany({
-            where: { projectId: project.id, archivedAt: null, status: { not: 'COMPLETED' } },
-            select: { id: true, title: true, dueDate: true, responsibleId: true },
-          }),
-        ]);
-        const work = [
-          {
-            id: project.id,
-            title: project.name,
-            dueDate: project.targetDate,
-            type: 'Project',
-            assigned: project.managerId,
-          },
-          ...tasks.map((t) => ({ ...t, type: 'Task', assigned: t.assigneeId })),
-          ...milestones.map((m) => ({ ...m, type: 'Milestone', assigned: m.responsibleId })),
-        ];
-        for (const item of work) {
-          const difference = Math.round((item.dueDate.getTime() - midnight) / 86400000);
-          if (
-            difference >= 0
-              ? !settings.days.includes(difference)
-              : (-difference - 1) % settings.overdueInterval !== 0
-          )
-            continue;
-          const recipients = [
-            ...new Set(
-              [project.managerId, item.assigned].filter(
-                (id): id is string => !!id && active.has(id),
-              ),
+        const activeUsers = new Set(candidates.map((user) => user.id));
+        const tasks = await tx.task.findMany({
+          where: { projectId: { in: ids }, archivedAt: null, status: { not: 'COMPLETED' } },
+          select: { id: true, projectId: true, title: true, dueDate: true, assigneeId: true },
+        });
+        const milestones = await tx.milestone.findMany({
+          where: { projectId: { in: ids }, archivedAt: null, status: { not: 'COMPLETED' } },
+          select: { id: true, projectId: true, title: true, dueDate: true, responsibleId: true },
+        });
+        for (const project of projects) {
+          const active = new Set(
+            [project.managerId, ...project.members.map((member) => member.userId)].filter((id) =>
+              activeUsers.has(id),
             ),
+          );
+          const work = [
+            {
+              id: project.id,
+              title: project.name,
+              dueDate: project.targetDate,
+              type: 'Project',
+              assigned: project.managerId,
+            },
+            ...tasks
+              .filter((task) => task.projectId === project.id)
+              .map((t) => ({ ...t, type: 'Task', assigned: t.assigneeId })),
+            ...milestones
+              .filter((milestone) => milestone.projectId === project.id)
+              .map((m) => ({ ...m, type: 'Milestone', assigned: m.responsibleId })),
           ];
-          const type = difference < 0 ? 'reminder.overdue' : 'reminder.upcoming';
-          const data: Prisma.NotificationCreateManyInput[] = recipients.map((recipientId) => ({
-            recipientId,
-            projectId: project.id,
-            taskId: item.type === 'Task' ? item.id : null,
-            entityType: item.type,
-            entityId: item.id,
-            type,
-            title:
-              difference < 0
-                ? `${item.type} overdue`
-                : difference === 0
-                  ? `${item.type} due today`
-                  : `${item.type} due in ${difference} day${difference === 1 ? '' : 's'}`,
-            message: item.title,
-            dedupeKey: `reminder:${item.type}:${item.id}:${item.dueDate.toISOString().slice(0, 10)}:${day}`,
-          }));
-          created += (await tx.notification.createMany({ data, skipDuplicates: true })).count;
+          for (const item of work) {
+            const difference = Math.round((item.dueDate.getTime() - midnight) / 86400000);
+            if (
+              difference >= 0
+                ? !settings.days.includes(difference)
+                : (-difference - 1) % settings.overdueInterval !== 0
+            )
+              continue;
+            const recipients = [
+              ...new Set(
+                [project.managerId, item.assigned].filter(
+                  (id): id is string => !!id && active.has(id),
+                ),
+              ),
+            ];
+            const type = difference < 0 ? 'reminder.overdue' : 'reminder.upcoming';
+            const data: Prisma.NotificationCreateManyInput[] = recipients.map((recipientId) => ({
+              recipientId,
+              projectId: project.id,
+              taskId: item.type === 'Task' ? item.id : null,
+              entityType: item.type,
+              entityId: item.id,
+              type,
+              title:
+                difference < 0
+                  ? `${item.type} overdue`
+                  : difference === 0
+                    ? `${item.type} due today`
+                    : `${item.type} due in ${difference} day${difference === 1 ? '' : 's'}`,
+              message: item.title,
+              dedupeKey: `reminder:${item.type}:${item.id}:${item.dueDate.toISOString().slice(0, 10)}:${day}`,
+            }));
+            created += (await tx.notification.createMany({ data, skipDuplicates: true })).count;
+          }
         }
+        if (projects.length < 100) break;
+        cursor = projects[projects.length - 1]!.id;
       }
       return { created, day };
     },
