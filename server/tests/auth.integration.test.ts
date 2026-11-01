@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { randomBytes } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { beforeAll, afterAll, describe, expect, it } from 'vitest';
+import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import argon2 from 'argon2';
 import { createDatabase } from '../src/config/database.js';
@@ -107,6 +107,18 @@ describe('PostgreSQL-backed authentication', () => {
   it('connects to PostgreSQL and returns structured health JSON', async () => {
     const response = await request(runtime.app).get('/api/health').expect(200);
     expect(response.body.data).toEqual({ status: 'ok', database: 'connected' });
+  });
+  it('reports listener readiness and becomes unready while draining', async () => {
+    const isolated = await createApp(config, db);
+    try {
+      await vi.waitFor(() => expect(isolated.realtime.isReady()).toBe(true));
+      await request(isolated.app).get('/api/ready').expect(200);
+      isolated.drain();
+      const response = await request(isolated.app).get('/api/ready').expect(503);
+      expect(response.body.error.code).toBe('NOT_READY');
+    } finally {
+      await isolated.close();
+    }
   });
   it('seeds all roles and departments; repeating bootstrap preserves credentials', async () => {
     const before = await db.user.findUniqueOrThrow({ where: { email } });

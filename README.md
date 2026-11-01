@@ -34,7 +34,7 @@ Built with the PERN stack, the application combines a responsive crimson-and-bla
 - **Budget & expenses:** approved-request posting, duplicate and overrun prevention, exact decimal totals, immutable reversals, financial filters, breakdowns and live charts.
 - **Audit and reporting:** protected audit viewer with recorded changes, server filters and pagination; authorized milestone/transaction/expense reports and CSV with spreadsheet formula protection.
 - **Phase 3 dashboard:** assigned approvals, net expenses, upcoming/overdue milestones, recent requests, milestone completion and financial charts alongside the existing Phase 2 sections.
-- **Responsive interface:** desktop sidebar, mobile navigation drawer, reusable dialogs, tables, forms, feedback, and a read-only personal profile.
+- **Responsive interface:** desktop sidebar, mobile navigation drawer, reusable dialogs, tables, forms, feedback, and a personal profile with secure password changes.
 
 ## Phase 4 collaboration
 
@@ -181,7 +181,7 @@ Before first browser testing, install Chromium with `npx playwright install chro
 
 Phase 2 verification recorded **42 backend tests** and **16 browser cases** passing, together with lint, type checks, formatting, and production builds. Phase 3 final verification passed **78 backend tests** and **32 browser cases** across four viewports. See [verification details](docs/testing.md) and the [Phase 3 report](docs/PHASE3_REPORT.md) for coverage and limitations.
 
-GitHub Actions validates installation, Prisma generation, types, lint, formatting, configuration/permission tests, and both builds. PostgreSQL integration and browser acceptance remain explicit local checks; the workflow does not require application secrets or deploy the app.
+GitHub Actions validates installation, Prisma generation, types, lint, formatting, the full backend suite against disposable PostgreSQL, four-viewport browser acceptance, and both builds. It generates temporary test credentials and does not use application secrets or deploy the app.
 
 ## Screenshots
 
@@ -197,7 +197,21 @@ Actual login page captured during local acceptance verification, with blank cred
 
 **Phase 3:** milestone management, transactions, independent approval stages, decimal-safe budgets/expenses and reversals, audit viewer, authorized CSV reports, and expanded live dashboard. See the [Phase 3 progress](docs/PHASE3_PROGRESS.md) and [API rules](docs/PHASE3_API.md) for checkpoint verification.
 
-The application is prepared for further development. Production deployment and the planned modules above are separate work.
+**Phase 4:** realtime notifications, comments, project activity, private documents, deadline reminders and analytics; locally verified.
+
+**Phase 5:** production security safeguards, password rotation, smaller initial bundle, batched reminders, readiness/logging/shutdown controls, and Vercel/Render/Neon configuration. Final verification is recorded in [Phase 5 progress](docs/PHASE5_PROGRESS.md). **Not deployed:** private testing is selected, but hosting accounts/projects, secrets, domain/access arrangement and durable storage still need configuration. No paid resources or company-data export have been authorized.
+
+### Hosting preparation
+
+- [Deployment steps and hosted acceptance checklist](docs/deployment.md)
+- [Local, staging and production environment variables](docs/environment.md)
+- [Production database migrations, backup and restore](docs/database-production.md)
+- [Administrator provisioning and security](docs/security.md)
+- [Monitoring, startup and rollback](docs/operations.md)
+
+Use the repository root for both hosts. Vercel builds with `npm run build -w client` into `client/dist`; Render builds with `npm ci --include=dev && npm run build -w server` and starts with `npm run start -w server`. Set the actual HTTPS API origin before the Vercel build. Production startup rejects development credentials and incomplete storage configuration. The prepared Render free-plan Blueprint is gated and cannot provide durable document storage; do not deploy it unchanged as a working full-feature service.
+
+Local development is unchanged: start PostgreSQL, then `npm run dev` for both applications. `npm run server` runs only the API.
 
 ## Documentation
 

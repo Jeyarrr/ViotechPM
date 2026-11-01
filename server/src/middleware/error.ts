@@ -45,7 +45,7 @@ export const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, _next
     return;
   }
   // Deliberately omit raw errors: database drivers may include connection credentials.
-  console.error('Request failed with an unexpected server error.');
+  console.error(JSON.stringify({ event: 'http.error', requestId: res.locals.requestId }));
   res.status(500).json({
     error: { code: 'INTERNAL_ERROR', message: 'Something went wrong. Please try again.' },
   });

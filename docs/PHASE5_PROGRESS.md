@@ -26,9 +26,9 @@ Fresh backend run: 94/94 passed, seven files, 58.53 seconds. Full 40-case browse
 
 ## Checkpoints
 
-1. 5.1 audit/security: in progress; no application changes yet.
-2. 5.2 database/performance: pending.
-3. 5.3 deployment configuration: pending.
+1. 5.1 audit/security: complete locally; committed/pushed as f0afa9e.
+2. 5.2 database/performance: complete locally; committed/pushed as 345cf0a.
+3. 5.3 deployment configuration: implemented; final checks in progress.
 4. 5.4 actual deployment: blocked on account connections, target provisioning, secure secrets and approved durable storage/domain arrangement.
 5. 5.5 final QA/docs: pending; hosted verification cannot be claimed without actual deployments.
 
@@ -61,3 +61,13 @@ Prisma schema validation and migration status passed: 13 applied migrations, no 
 Socket.IO now loads after authentication with cancellation-safe cleanup. Client entry bundle decreased from 493.38 kB / 159.05 kB gzip to 451.65 kB / 145.98 kB gzip (8.46% raw, 8.22% gzip); the deferred socket chunk is 41.78 kB. This measures bundle transfer, not hosted latency. Reminder reads are batched in 100-project pages; the 50-project regression uses four model reads rather than 151, preserving per-project active-recipient scope. Existing reminder deduplication tests still pass. Empty local project tables cannot establish representative large-data query latency; EXPLAIN used the existing project index and no speculative indexes were added.
 
 Verification: 103/103 backend tests; eight collaboration/workspace browser cases across four viewports; both builds, TypeScript and lint passed. Formatting initially flagged the new performance test, which was reformatted and rechecked successfully. Large-scale analytics/load benchmarking remains a pre-company-rollout task.
+
+## Checkpoint 5.3 implementation and local verification
+
+Added root Vercel/Render configuration with automatic deployment disabled, actual-HTTPS API build validation, dynamic host/port binding, graceful shutdown deadline, listener-aware readiness, generated request IDs and redacted production request/error logs. API requests, downloads and uploads now have timeouts and malformed successful responses are handled safely. Production storage accessibility is probed at startup after administrator validation. The probe verifies access only; provider durability still requires approved resources.
+
+Added deployment, environment, database, security and operations guides. Expanded GitHub Actions to disposable PostgreSQL 18, full backend tests, four-viewport browser acceptance, builds and Linux compiled-runtime shutdown verification. No provider resources or secrets were created.
+
+Local results so far: 105/105 backend tests, types and both builds passed. Compiled API bound the hosting interface and returned readiness 200. Windows process termination is verified; graceful SIGTERM semantics will be verified by Linux CI. Full 44-case browser suite and updated CI are pending. GitHub API now reports repository visibility as public (2026-11-01); visibility was not changed by this work. Hosting intent remains private testing.
+
+Deployment-preparation static checks are now clean: final lint and repository formatting passed after fixing the smoke-test cleanup rule. Hosted API build guard rejected five invalid origins and accepted a valid HTTPS origin. Full responsive regression continues independently; it is not yet reported as passed. Checkpoint 5.3 configuration is ready for review but deliberately not deployable without the documented external resources.

@@ -16,6 +16,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   try {
     response = await fetch(`${baseUrl}/api${path}`, {
       ...options,
+      signal: options.signal ?? AbortSignal.timeout(30000),
       credentials: 'include',
       headers: { 'Content-Type': 'application/json', ...options.headers },
     });
@@ -34,6 +35,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       json?.error?.message ?? 'The service is unavailable. Please try again.',
       json?.error?.fields ?? [],
     );
+  if (!json || typeof json !== 'object' || !('data' in json))
+    throw new ApiError(
+      response.status,
+      'INVALID_RESPONSE',
+      'The service returned an unexpected response. Please try again.',
+    );
   return (json as ApiEnvelope<T>).data;
 }
 export const api = {
@@ -43,6 +50,9 @@ export const api = {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', `${baseUrl}/api${path}`);
       xhr.withCredentials = true;
+      xhr.timeout = 120000;
+      xhr.ontimeout = () =>
+        reject(new Error('Upload timed out. Check your connection and try again.'));
       xhr.setRequestHeader('Content-Type', 'application/octet-stream');
       xhr.setRequestHeader('X-CSRF-Token', csrfToken);
       xhr.setRequestHeader('X-File-Name', encodeURIComponent(file.name));
@@ -64,7 +74,10 @@ export const api = {
   async download(path: string, filename: string) {
     let response: Response;
     try {
-      response = await fetch(`${baseUrl}/api${path}`, { credentials: 'include' });
+      response = await fetch(`${baseUrl}/api${path}`, {
+        credentials: 'include',
+        signal: AbortSignal.timeout(60000),
+      });
     } catch {
       throw new ApiError(
         0,

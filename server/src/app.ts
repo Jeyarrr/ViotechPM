@@ -1,4 +1,6 @@
 import { createServer } from 'node:http';
+import { requestLogging } from './middleware/observability.js';
+import { localStorage } from './services/storage.service.js';
 import { createRealtime } from './services/realtime.service.js';
 import { notificationRoutes } from './routes/notification.routes.js';
 import { collaborationRoutes } from './routes/collaboration.routes.js';
@@ -39,6 +41,7 @@ export async function createApp(
   options: { storage?: PrivateStorage } = {},
 ) {
   const app = express();
+  let draining = false;
   const auth = await createAuthService(db, config.NODE_ENV === 'production');
   const pool = new pg.Pool({
     connectionString: config.DATABASE_URL,
@@ -64,6 +67,7 @@ export async function createApp(
     allowedOrigins.push(clientUrl.origin);
   }
   app.disable('x-powered-by');
+  app.use(requestLogging(config.NODE_ENV === 'production'));
   if (config.TRUST_PROXY === '1') app.set('trust proxy', 1);
   app.use(helmet());
   app.use(
@@ -71,6 +75,7 @@ export async function createApp(
       origin: allowedOrigins,
       credentials: true,
       allowedHeaders: ['Content-Type', 'X-CSRF-Token', 'X-File-Name'],
+      exposedHeaders: ['X-Request-ID'],
     }),
   );
   app.use(
@@ -98,6 +103,15 @@ export async function createApp(
       res
         .status(503)
         .json({ error: { code: 'DATABASE_UNAVAILABLE', message: 'Database is unavailable.' } });
+    }
+  });
+  app.get('/api/ready', async (_req, res) => {
+    try {
+      if (draining || !realtime.isReady()) throw Error('Not ready');
+      await db.$queryRaw`SELECT 1`;
+      res.json({ data: { status: 'ready' } });
+    } catch {
+      res.status(503).json({ error: { code: 'NOT_READY', message: 'Service is not ready.' } });
     }
   });
   const sessionMiddleware = session({
@@ -130,7 +144,7 @@ export async function createApp(
     requireAuth(auth),
   );
   app.use('/api', collaborationRoutes(db));
-  app.use('/api', documentRoutes(db, options.storage));
+  app.use('/api', documentRoutes(db, options.storage ?? localStorage(config.UPLOAD_DIRECTORY)));
   app.use('/api/analytics', requireAuth(auth), analyticsRoutes(db));
   app.use('/api/clients', requireAuth(auth), clientRoutes(db));
   app.use('/api/projects', requireAuth(auth), projectRoutes(db));
@@ -181,7 +195,11 @@ export async function createApp(
     app,
     server,
     realtime,
+    drain() {
+      draining = true;
+    },
     async close() {
+      draining = true;
       await realtime.close();
       store.close();
       await pool.end();

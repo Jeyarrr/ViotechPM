@@ -1,0 +1,40 @@
+# Preparation only. Free hosting cannot satisfy durable-local storage.
+# Do not apply until private access and durable storage are approved.
+services:
+  - type: web
+    name: viotechpm-api
+    runtime: node
+    plan: free
+    branch: main
+    autoDeployTrigger: off
+    buildCommand: npm ci --include=dev && npm run build -w server
+    startCommand: npm run start -w server
+    healthCheckPath: /api/ready
+    maxShutdownDelaySeconds: 30
+    envVars:
+      - key: NODE_VERSION
+        value: 24
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: TRUST_PROXY
+        value: '1'
+      - key: COOKIE_SAME_SITE
+        value: lax
+      - key: REMINDERS_ENABLED
+        value: 'false'
+      - key: PRODUCTION_READY_ACK
+        value: 'false'
+      - key: CLIENT_ORIGIN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_DATABASE_URL
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: UPLOAD_STORAGE
+        sync: false
+      - key: UPLOAD_DIRECTORY
+        sync: false

@@ -1,25 +1,40 @@
 name: Validate source
-
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
-
 permissions:
   contents: read
-
 concurrency:
   group: validate-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: isolated_ci_only
+          POSTGRES_DB: viotechpm_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d viotechpm_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     env:
-      # Prisma generation/build reads this URL but never connects to it.
-      DATABASE_URL: postgresql://localhost:5432/viotechpm_ci
+      # Disposable runner-only database; no application or deployment secrets.
+      DATABASE_URL: postgresql://ci:isolated_ci_only@localhost:5432/postgres
+      TEST_DATABASE_URL: postgresql://ci:isolated_ci_only@localhost:5432/viotechpm_test
+      CLIENT_ORIGIN: http://localhost:5173
+      BOOTSTRAP_ADMIN_EMAIL: acceptance@test.viotech.local
+      BOOTSTRAP_ADMIN_NAME: Acceptance Administrator
+      NODE_ENV: test
     steps:
       - uses: actions/checkout@v7
         with:
@@ -28,8 +43,19 @@ jobs:
         with:
           node-version: '24'
           cache: npm
+      - name: Generate ephemeral test credentials
+        run: |
+          node --input-type=module <<'JS'
+          import { randomBytes } from 'node:crypto';
+          import { appendFileSync } from 'node:fs';
+          for (const name of ['SESSION_SECRET', 'BOOTSTRAP_ADMIN_PASSWORD']) {
+            const value = randomBytes(48).toString('hex');
+            console.log('::add-mask::' + value);
+            appendFileSync(process.env.GITHUB_ENV, name + '=' + value + '\n');
+          }
+          JS
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --include=dev
       - name: Generate Prisma client
         run: npm run db:generate
       - name: TypeScript
@@ -38,7 +64,13 @@ jobs:
         run: npm run lint
       - name: Formatting
         run: npm run format:check
-      - name: Configuration, permission and export safety tests
-        run: npm run test -w server -- tests/config.test.ts tests/report.test.ts
+      - name: Full backend tests
+        run: npm test
+      - name: Install browser
+        run: npx playwright install --with-deps chromium
+      - name: Responsive browser acceptance
+        run: npm run test:e2e
       - name: Frontend and backend builds
         run: npm run build
+      - name: Compiled runtime startup and shutdown
+        run: node scripts/smoke-runtime.mjs

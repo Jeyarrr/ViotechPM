@@ -116,6 +116,7 @@ export function createRealtime(
   let listener: pg.Client | undefined;
   let retry: NodeJS.Timeout | undefined;
   let stopped = false;
+  let ready = false;
   let chain = Promise.resolve();
   async function dispatch(payload: string) {
     const parsed = z
@@ -175,6 +176,7 @@ export function createRealtime(
     const client = new pg.Client({ connectionString: databaseUrl, connectionTimeoutMillis: 5000 });
     listener = client;
     const reconnect = () => {
+      ready = false;
       if (stopped || retry) return;
       void client.end().catch(() => undefined);
       retry = setTimeout(() => {
@@ -196,6 +198,7 @@ export function createRealtime(
     try {
       await client.connect();
       await client.query('LISTEN viotech_events');
+      ready = !stopped;
     } catch {
       reconnect();
     }
@@ -203,8 +206,10 @@ export function createRealtime(
   void connect();
   return {
     io,
+    isReady: () => ready && !stopped,
     async close() {
       stopped = true;
+      ready = false;
       clearInterval(authTimer);
       if (retry) clearTimeout(retry);
       await listener?.end().catch(() => undefined);
