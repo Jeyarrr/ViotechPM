@@ -161,14 +161,12 @@ export async function createApp(
   app.use('/api', collaborationRoutes(db));
   if (config.DOCUMENTS_ENABLED === 'false') {
     app.use(['/api/projects/:id/documents', '/api/documents'], (_req, res) => {
-      res
-        .status(503)
-        .json({
-          error: {
-            code: 'DOCUMENTS_DISABLED',
-            message: 'Documents are disabled for this test deployment.',
-          },
-        });
+      res.status(503).json({
+        error: {
+          code: 'DOCUMENTS_DISABLED',
+          message: 'Documents are disabled for this test deployment.',
+        },
+      });
     });
   } else {
     app.use('/api', documentRoutes(db, options.storage ?? localStorage(config.UPLOAD_DIRECTORY)));
