@@ -40,14 +40,16 @@ try {
   db = createDatabase(config.DATABASE_URL);
   await db.$connect();
   if (config.NODE_ENV === 'production') {
-    await assertProductionAccounts(db);
+    await assertProductionAccounts(db, config.HOSTED_TEST_MODE === 'true');
     // This verifies accessibility, not the provider's durability guarantee.
-    const storage = localStorage(config.UPLOAD_DIRECTORY);
-    const key = await storage.put(Buffer.from('ViotechPM storage readiness'));
-    try {
-      await storage.read(key);
-    } finally {
-      await storage.remove(key);
+    if (config.DOCUMENTS_ENABLED !== 'false') {
+      const storage = localStorage(config.UPLOAD_DIRECTORY);
+      const key = await storage.put(Buffer.from('ViotechPM storage readiness'));
+      try {
+        await storage.read(key);
+      } finally {
+        await storage.remove(key);
+      }
     }
   }
   runtime = await createApp(config, db);

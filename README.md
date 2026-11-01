@@ -11,7 +11,15 @@
 
 Use `admin` / `admin` in the login form for this local test workspace. The username is a development-only alias for the existing `admin@viotech.local` account.
 
-These credentials apply only to this configured local test database; do not use this password for production. Other installations use their own `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD`. Re-running the seed does not reset an existing account's password.
+These credentials apply to the configured local database and the private Neon test workspace. Public production startup rejects this weak password. Other installations use their own `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD`. Re-running the seed does not reset an existing account's password.
+
+## Neon private testing
+
+Run `npm run dev:neon` to start both the frontend and API using the Neon database. Open http://localhost:5173 and sign in with **admin / admin**. The account name is **Lawrence Arvin Violan**.
+
+Stop any existing local dev server first so ports 4000 and 5173 are available. Normal `npm run dev` still uses the local database. Neither command copies data between databases.
+
+The ignored root `.env.local` contains the Neon connections; `server/.env` remains unchanged. See [Neon setup and verification](docs/NEON_SETUP.md).
 
 ### Project Management System for Viotech I.T. Solutions
 

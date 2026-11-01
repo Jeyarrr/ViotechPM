@@ -1,5 +1,5 @@
-# Preparation only. Free hosting cannot satisfy durable-local storage.
-# Do not apply until private access and durable storage are approved.
+# Free test deployment: documents disabled; existing test login explicitly allowed.
+# Add actual frontend origin and database/session settings before deployment.
 services:
   - type: web
     name: viotechpm-api
@@ -24,6 +24,12 @@ services:
         value: lax
       - key: REMINDERS_ENABLED
         value: 'false'
+      - key: DOCUMENTS_ENABLED
+        value: 'false'
+      - key: HOSTED_TEST_MODE
+        value: 'true'
+      - key: TEST_ADMIN_EMAIL
+        sync: false
       - key: PRODUCTION_READY_ACK
         value: 'false'
       - key: CLIENT_ORIGIN
@@ -34,7 +40,5 @@ services:
         sync: false
       - key: SESSION_SECRET
         sync: false
-      - key: UPLOAD_STORAGE
-        sync: false
-      - key: UPLOAD_DIRECTORY
+      - key: REALTIME_DATABASE_URL
         sync: false

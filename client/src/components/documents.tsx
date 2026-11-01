@@ -17,7 +17,23 @@ type Document = {
   task: { title: string } | null;
   canArchive: boolean;
 };
-export function ProjectDocuments({
+type DocumentProps = { projectId: string; taskId?: string; readOnly?: boolean };
+
+export function ProjectDocuments(props: DocumentProps) {
+  const features = useQuery({
+    queryKey: ['features'],
+    queryFn: () => api.get<{ documents: boolean }>('/features'),
+    staleTime: 60000,
+  });
+  if (features.isPending) return null;
+  if (features.isError)
+    return <Card className="detail-panel">Document availability could not be checked.</Card>;
+  if (!features.data.documents)
+    return <Card className="detail-panel">Documents are disabled for this test deployment.</Card>;
+  return <EnabledProjectDocuments {...props} />;
+}
+
+function EnabledProjectDocuments({
   projectId,
   taskId,
   readOnly = false,

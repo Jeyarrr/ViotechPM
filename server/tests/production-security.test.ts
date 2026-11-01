@@ -15,8 +15,10 @@ describe('production password and target safeguards', () => {
     await expect(assertProductionAccounts(db)).rejects.toThrow();
     findMany.mockResolvedValue([{ passwordHash: 'obsolete' }]);
     await expect(assertProductionAccounts(db)).rejects.toThrow();
+    await expect(assertProductionAccounts(db, true)).rejects.toThrow();
     findMany.mockResolvedValue([{ passwordHash: await argon2.hash('admin') }]);
     await expect(assertProductionAccounts(db)).rejects.toThrow();
+    await expect(assertProductionAccounts(db, true)).resolves.toBeUndefined();
     findMany.mockResolvedValue([
       { passwordHash: await argon2.hash('river copper lantern meadow 72') },
     ]);
@@ -80,6 +82,24 @@ describe('production environment fails closed', () => {
   };
   it('accepts explicit TLS and durable storage configuration', () =>
     expect(parseEnv(valid).NODE_ENV).toBe('production'));
+  it('allows free hosted testing only with an explicit admin alias and documents disabled', () => {
+    const free = { ...valid, UPLOAD_STORAGE: undefined, UPLOAD_DIRECTORY: undefined };
+    expect(() => parseEnv(free)).toThrow();
+    expect(() =>
+      parseEnv({ ...free, DOCUMENTS_ENABLED: 'false', HOSTED_TEST_MODE: 'true' }),
+    ).toThrow();
+    expect(
+      parseEnv({
+        ...free,
+        DOCUMENTS_ENABLED: 'false',
+        HOSTED_TEST_MODE: 'true',
+        TEST_ADMIN_EMAIL: 'admin@viotech.local',
+      }).DOCUMENTS_ENABLED,
+    ).toBe('false');
+    expect(() =>
+      parseEnv({ ...free, DOCUMENTS_ENABLED: 'false', CLIENT_ORIGIN: 'http://app.example.test' }),
+    ).toThrow();
+  });
   it('rejects unsafe, incomplete and pooled listener configurations', () => {
     for (const override of [
       { SESSION_SECRET: 'a'.repeat(64) },

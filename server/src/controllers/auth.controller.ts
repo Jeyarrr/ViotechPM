@@ -12,6 +12,7 @@ export function authController(
   db: PrismaClient,
   secure: boolean,
   sameSite: 'lax' | 'none' = 'lax',
+  testAdminEmail?: string,
 ) {
   const csrf: RequestHandler = (req, res) => {
     req.session.csrfToken ??= randomBytes(32).toString('hex');
@@ -20,11 +21,18 @@ export function authController(
   const login: RequestHandler = async (req, res) => {
     if (
       secure &&
+      !testAdminEmail &&
       typeof req.body?.email === 'string' &&
       req.body.email.trim().toLowerCase() === 'admin'
     )
       throw new AppError(401, 'INVALID_CREDENTIALS', 'The email or password is incorrect.');
-    const input = loginSchema.parse(req.body);
+    const input = loginSchema.parse(
+      testAdminEmail &&
+        typeof req.body?.email === 'string' &&
+        req.body.email.trim().toLowerCase() === 'admin'
+        ? { ...req.body, email: testAdminEmail }
+        : req.body,
+    );
     const id = await auth.authenticate(input.email, input.password);
     await new Promise<void>((resolve, reject) =>
       req.session.regenerate((err) => (err ? reject(err) : resolve())),

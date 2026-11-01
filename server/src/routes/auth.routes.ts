@@ -10,9 +10,10 @@ export function authRoutes(
   db: PrismaClient,
   secure: boolean,
   sameSite: 'lax' | 'none' = 'lax',
+  testAdminEmail?: string,
 ) {
   const router = Router();
-  const controller = authController(auth, db, secure, sameSite);
+  const controller = authController(auth, db, secure, sameSite, testAdminEmail);
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 10,

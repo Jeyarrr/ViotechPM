@@ -26,6 +26,9 @@ const schema = z.object({
   PRODUCTION_READY_ACK: z.enum(['true', 'false']).optional(),
   UPLOAD_STORAGE: z.enum(['local', 'durable-local']).optional(),
   UPLOAD_DIRECTORY: z.string().optional(),
+  DOCUMENTS_ENABLED: z.enum(['true', 'false']).optional(),
+  HOSTED_TEST_MODE: z.enum(['true', 'false']).optional(),
+  TEST_ADMIN_EMAIL: z.email().optional(),
 });
 
 export type AppConfig = z.infer<typeof schema>;
@@ -42,6 +45,8 @@ export function parseEnv(input: NodeJS.ProcessEnv): AppConfig {
     throw new Error('CLIENT_ORIGIN must use HTTPS in production');
   }
   const config = parsed.data;
+  if (config.HOSTED_TEST_MODE === 'true' && !config.TEST_ADMIN_EMAIL)
+    throw Error('HOSTED_TEST_MODE requires TEST_ADMIN_EMAIL for the admin alias.');
   if (config.COOKIE_SAME_SITE === 'none' && config.NODE_ENV !== 'production')
     throw Error('COOKIE_SAME_SITE=none requires production HTTPS.');
   if (config.NODE_ENV === 'production') {
@@ -70,9 +75,10 @@ export function parseEnv(input: NodeJS.ProcessEnv): AppConfig {
         );
     }
     if (
-      config.UPLOAD_STORAGE !== 'durable-local' ||
-      !config.UPLOAD_DIRECTORY ||
-      !config.UPLOAD_DIRECTORY.startsWith('/')
+      config.DOCUMENTS_ENABLED !== 'false' &&
+      (config.UPLOAD_STORAGE !== 'durable-local' ||
+        !config.UPLOAD_DIRECTORY ||
+        !config.UPLOAD_DIRECTORY.startsWith('/'))
     )
       throw Error('Durable private document storage must be configured before production startup.');
   }

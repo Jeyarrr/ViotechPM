@@ -42,7 +42,10 @@ export async function createApp(
 ) {
   const app = express();
   let draining = false;
-  const auth = await createAuthService(db, config.NODE_ENV === 'production');
+  const auth = await createAuthService(
+    db,
+    config.NODE_ENV === 'production' && config.HOSTED_TEST_MODE !== 'true',
+  );
   const pool = new pg.Pool({
     connectionString: config.DATABASE_URL,
     connectionTimeoutMillis: 5000,
@@ -131,7 +134,19 @@ export async function createApp(
   });
   app.use(sessionMiddleware);
   app.use(protectMutations(allowedOrigins));
-  app.use('/api/auth', authRoutes(auth, db, secure, config.COOKIE_SAME_SITE));
+  app.use(
+    '/api/auth',
+    authRoutes(
+      auth,
+      db,
+      secure,
+      config.COOKIE_SAME_SITE,
+      config.HOSTED_TEST_MODE === 'true' ? config.TEST_ADMIN_EMAIL : undefined,
+    ),
+  );
+  app.get('/api/features', requireAuth(auth), (_req, res) => {
+    res.json({ data: { documents: config.DOCUMENTS_ENABLED !== 'false' } });
+  });
   app.use('/api/notifications', requireAuth(auth), notificationRoutes(db));
   app.use(
     [
@@ -144,7 +159,20 @@ export async function createApp(
     requireAuth(auth),
   );
   app.use('/api', collaborationRoutes(db));
-  app.use('/api', documentRoutes(db, options.storage ?? localStorage(config.UPLOAD_DIRECTORY)));
+  if (config.DOCUMENTS_ENABLED === 'false') {
+    app.use(['/api/projects/:id/documents', '/api/documents'], (_req, res) => {
+      res
+        .status(503)
+        .json({
+          error: {
+            code: 'DOCUMENTS_DISABLED',
+            message: 'Documents are disabled for this test deployment.',
+          },
+        });
+    });
+  } else {
+    app.use('/api', documentRoutes(db, options.storage ?? localStorage(config.UPLOAD_DIRECTORY)));
+  }
   app.use('/api/analytics', requireAuth(auth), analyticsRoutes(db));
   app.use('/api/clients', requireAuth(auth), clientRoutes(db));
   app.use('/api/projects', requireAuth(auth), projectRoutes(db));
