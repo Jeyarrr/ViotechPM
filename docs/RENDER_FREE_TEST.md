@@ -1,5 +1,9 @@
 # Free Render test deployment
 
+## Account policy update — November 2, 2026
+
+The subsequent local multi-user requirements supersede the original weak hosted-login exception described below. Production authentication now rejects weak passwords and the four documented local demo identities even with `HOSTED_TEST_MODE=true`. Previously issued hosted sessions for the local administrator password are denied on subsequent authorization checks, including Socket.IO checks. The administrator's database record, password hash and relationships remain intact. Restoring hosted administrator access requires a separately authorized strong password rotation; local access remains unchanged. No demo users or fictional project data are provisioned in Neon. The original deployment checks below describe the earlier deployment, not the current password policy.
+
 The user selected free Render hosting, disabled documents, and retained the existing admin/admin test login. This configuration is for a disposable demonstration database with no company records. A Render web service has a public endpoint; this configuration does not make it network-private.
 
 Use the repository root, Node 24, branch main, Singapore region and Free compute.

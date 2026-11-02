@@ -390,6 +390,33 @@ it('rejects a real weak database credential in production while preserving devel
     const development = await createAuthService(db, false);
     await expect(production.authenticate(email, 'admin')).rejects.toMatchObject({ status: 401 });
     await expect(development.authenticate(email, 'admin')).resolves.toBe(user.id);
+    await expect(production.currentUser(user.id)).resolves.toBeNull();
+    const hosted = await createApp(
+      {
+        ...config,
+        NODE_ENV: 'production',
+        HOSTED_TEST_MODE: 'true',
+        TEST_ADMIN_EMAIL: email,
+        TRUST_PROXY: '1',
+      },
+      db,
+    );
+    try {
+      const csrfResponse = await request(hosted.app)
+        .get('/api/auth/csrf')
+        .set('X-Forwarded-Proto', 'https');
+      const cookie = (csrfResponse.headers['set-cookie'] as unknown as string[])[0]!.split(';')[0]!;
+      await request(hosted.app)
+        .post('/api/auth/login')
+        .set('X-Forwarded-Proto', 'https')
+        .set('Origin', config.CLIENT_ORIGIN)
+        .set('Cookie', cookie)
+        .set('X-CSRF-Token', csrfResponse.body.data.csrfToken)
+        .send({ email: 'admin', password: 'admin' })
+        .expect(401);
+    } finally {
+      await hosted.close();
+    }
   } finally {
     await db.user.update({ where: { id: user.id }, data: { passwordHash: user.passwordHash } });
   }

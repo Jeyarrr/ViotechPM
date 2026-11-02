@@ -1,21 +1,24 @@
 # ViotechPM
 
-## Local administrator login
+## Demo Login Credentials — Local Development Only
 
-| Field      | Value                 |
-| ---------- | --------------------- |
-| Login page | http://localhost:5173 |
-| Username   | `admin`               |
-| Password   | `admin`               |
-| Role       | Super Administrator   |
+Run `npm run db:local:start`, then `npm run db:demo:local` and `npm run dev`. Open http://localhost:5173. Demo provisioning is restricted to the existing loopback PostgreSQL cluster on port 55432, database `viotechpm`. It does not connect to Neon. It preserves the original administrator and refuses account collisions; repeating it does not reset passwords or edit existing records.
 
-Use `admin` / `admin` in the login form for this local test workspace. The username is a development-only alias for the existing `admin@viotech.local` account.
+| Full Name / Role                    | Username                | Login Email               | Password                              | Access Level                                                 |
+| ----------------------------------- | ----------------------- | ------------------------- | ------------------------------------- | ------------------------------------------------------------ |
+| Lawrence Arvin Violan / Super Admin | `admin`                 | `admin@viotech.local`     | See ignored local credential document | Full administration                                          |
+| Demo Project Manager                | manager (label only)    | `manager@viotech.test`    | `Manager@VioPM2026!`                  | Manage assigned projects, assignments and authorized reviews |
+| Demo Developer                      | developer (label only)  | `developer@viotech.test`  | `Developer@VioPM2026!`                | Assigned projects, development tasks and discussions         |
+| Demo IT Support Technician          | technician (label only) | `technician@viotech.test` | `Technician@VioPM2026!`               | Assigned technical tasks and authorized documents            |
+| Demo Employee                       | employee (label only)   | `employee@viotech.test`   | `Employee@VioPM2026!`                 | Assigned work, permitted status updates and requests         |
 
-These credentials apply to the configured local database and the private Neon test workspace. Public production startup rejects this weak password. Other installations use their own `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD`. Re-running the seed does not reset an existing account's password.
+The four fictional accounts sign in using their **full email address**; only the existing local administrator supports the `admin` alias. Provisioning writes `.local/demo-credentials.md`, which is Git-ignored and contains the preserved local administrator credentials. Open that file locally. No administrator password is published here because it was previously active on the hosted test environment.
+
+These accounts are for fictional local development data only. Production rejects the four demo identities and weak passwords even when hosted test mode is enabled. Existing hosted sessions using the local administrator password are denied too. No password, role or associated administrator record is reset by this change. A separately authorized password rotation is required to restore secure hosted administrator access. Other installations retain their own bootstrap configuration.
 
 ## Neon private testing
 
-Run `npm run dev:neon` to start both the frontend and API using the Neon database. Open http://localhost:5173 and sign in with **admin / admin**. The account name is **Lawrence Arvin Violan**.
+Run `npm run dev:neon` only for separately authorized Neon development work. The local demo-account provisioning command never targets Neon. The existing administrator is **Lawrence Arvin Violan**; its password is not published here.
 
 Stop any existing local dev server first so ports 4000 and 5173 are available. Normal `npm run dev` still uses the local database. Neither command copies data between databases.
 

@@ -7,6 +7,12 @@ import { AppError } from '../utils/errors.js';
 import { productionPasswordAllowed } from './production-security.service.js';
 
 type SelectedUser = Prisma.UserGetPayload<{ select: typeof publicUserSelect }>;
+const localDemoEmails = new Set([
+  'manager@viotech.test',
+  'developer@viotech.test',
+  'technician@viotech.test',
+  'employee@viotech.test',
+]);
 export type PublicUser = Omit<SelectedUser, 'status' | 'createdAt' | 'lastLoginAt'> & {
   createdAt: string;
   lastLoginAt: string | null;
@@ -42,7 +48,7 @@ export async function createAuthService(db: PrismaClient, production = false) {
         !user ||
         !valid ||
         user.status !== 'ACTIVE' ||
-        (production && !productionPasswordAllowed(password))
+        (production && (!productionPasswordAllowed(password) || localDemoEmails.has(email)))
       ) {
         await db.auditLog.create({ data: { action: 'auth.login.failed', entityType: 'User' } });
         throw new AppError(401, 'INVALID_CREDENTIALS', 'The email or password is incorrect.');
@@ -82,6 +88,12 @@ export async function createAuthService(db: PrismaClient, production = false) {
     },
     async currentUser(id: string) {
       const user = await users.findPublic(id);
+      if (production && user) {
+        if (localDemoEmails.has(user.email)) return null;
+        const credentials = await users.findCredentials(user.email);
+        // Also invalidate previously issued hosted sessions for the local-only administrator password.
+        if (credentials && (await argon2.verify(credentials.passwordHash, 'admin'))) return null;
+      }
       return user?.status === 'ACTIVE' ? serializeUser(user) : null;
     },
     async recordLogin(id: string) {
