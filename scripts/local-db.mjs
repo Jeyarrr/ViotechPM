@@ -19,6 +19,9 @@ function run(name, args, env = {}) {
     encoding: 'utf8',
     env: { ...process.env, ...env },
     timeout: 60_000,
+    // PostgreSQL outlives pg_ctl. Do not let the server inherit output pipes
+    // that keep spawnSync waiting after pg_ctl has finished starting it.
+    ...(name === 'pg_ctl' && args[0] === 'start' ? { stdio: 'ignore' } : {}),
   });
   if (result.status !== 0)
     throw new Error(
