@@ -379,7 +379,7 @@ describe('PostgreSQL-backed authentication', () => {
   });
 });
 
-it('rejects a real weak database credential in production while preserving development access', async () => {
+it('rejects weak credentials in normal production and permits the explicitly authorized hosted test mode', async () => {
   const user = await db.user.findUniqueOrThrow({ where: { email } });
   try {
     await db.user.update({
@@ -413,7 +413,7 @@ it('rejects a real weak database credential in production while preserving devel
         .set('Cookie', cookie)
         .set('X-CSRF-Token', csrfResponse.body.data.csrfToken)
         .send({ email: 'admin', password: 'admin' })
-        .expect(401);
+        .expect(200);
     } finally {
       await hosted.close();
     }

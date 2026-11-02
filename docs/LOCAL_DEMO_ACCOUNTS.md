@@ -1,5 +1,7 @@
 # Local demo accounts and verification
 
+Current policy: the user subsequently explicitly authorized these five demo accounts on the live test site. They are enabled in the existing Neon database with `HOSTED_TEST_MODE=true`. The README contains the exact live credentials. The restriction/deployment checks below record the earlier local-only policy and are superseded for this authorized hosted test environment. Normal production mode retains its restrictions.
+
 The original local administrator was inspected before provisioning: Lawrence Arvin Violan, `admin@viotech.local`, role `super_admin`, ID `43e3c9cb-0d68-4de4-a64e-7d0fec7d6daf`. The existing local login was verified. Its ID, name, role and password hash were preserved. No administrator was recreated or renamed.
 
 `npm run db:demo:local` builds the backend and provisions four fictional users in the existing local PostgreSQL database. It requires development mode, the exact loopback database and port, and PostgreSQL's loopback-only listener setting. It does not load Neon configuration. The transaction locks provisioning, rejects an existing email belonging to another record, and never updates an existing demo password. It creates a fictional client, project, milestone, four tasks, memberships and a two-stage approval policy. Repeated provisioning retains existing records and changes made during testing.

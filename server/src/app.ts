@@ -42,7 +42,10 @@ export async function createApp(
 ) {
   const app = express();
   let draining = false;
-  const auth = await createAuthService(db, config.NODE_ENV === 'production');
+  const auth = await createAuthService(
+    db,
+    config.NODE_ENV === 'production' && config.HOSTED_TEST_MODE !== 'true',
+  );
   const pool = new pg.Pool({
     connectionString: config.DATABASE_URL,
     connectionTimeoutMillis: 5000,

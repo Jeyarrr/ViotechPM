@@ -1,24 +1,28 @@
 # ViotechPM
 
-## Demo Login Credentials — Local Development Only
+## Demo Login Credentials
 
-Run `npm run db:local:start`, then `npm run db:demo:local` and `npm run dev`. Open http://localhost:5173. Demo provisioning is restricted to the existing loopback PostgreSQL cluster on port 55432, database `viotechpm`. It does not connect to Neon. It preserves the original administrator and refuses account collisions; repeating it does not reset passwords or edit existing records.
+**Live test system: https://viotechpm.vercel.app**
 
-| Full Name / Role                    | Username                | Login Email               | Password                              | Access Level                                                 |
-| ----------------------------------- | ----------------------- | ------------------------- | ------------------------------------- | ------------------------------------------------------------ |
-| Lawrence Arvin Violan / Super Admin | `admin`                 | `admin@viotech.local`     | See ignored local credential document | Full administration                                          |
-| Demo Project Manager                | manager (label only)    | `manager@viotech.test`    | `Manager@VioPM2026!`                  | Manage assigned projects, assignments and authorized reviews |
-| Demo Developer                      | developer (label only)  | `developer@viotech.test`  | `Developer@VioPM2026!`                | Assigned projects, development tasks and discussions         |
-| Demo IT Support Technician          | technician (label only) | `technician@viotech.test` | `Technician@VioPM2026!`               | Assigned technical tasks and authorized documents            |
-| Demo Employee                       | employee (label only)   | `employee@viotech.test`   | `Employee@VioPM2026!`                 | Assigned work, permitted status updates and requests         |
+These five accounts are enabled on the live test system and in the local development database. Use the exact **Sign-in value** below. The original administrator has been preserved; no duplicate Super Admin was created.
 
-The four fictional accounts sign in using their **full email address**; only the existing local administrator supports the `admin` alias. Provisioning writes `.local/demo-credentials.md`, which is Git-ignored and contains the preserved local administrator credentials. Open that file locally. No administrator password is published here because it was previously active on the hosted test environment.
+| Full Name / Role                    | Sign-in value           | Login Email             | Password              | Access Level                                                 |
+| ----------------------------------- | ----------------------- | ----------------------- | --------------------- | ------------------------------------------------------------ |
+| Lawrence Arvin Violan / Super Admin | admin                   | admin@viotech.local     | admin                 | Full administration                                          |
+| Demo Project Manager                | manager@viotech.test    | manager@viotech.test    | Manager@VioPM2026!    | Assigned projects, task assignments and authorized approvals |
+| Demo Developer                      | developer@viotech.test  | developer@viotech.test  | Developer@VioPM2026!  | Assigned projects, development tasks and discussions         |
+| Demo IT Support Technician          | technician@viotech.test | technician@viotech.test | Technician@VioPM2026! | Technical assignments, task updates and authorized documents |
+| Demo Employee                       | employee@viotech.test   | employee@viotech.test   | Employee@VioPM2026!   | Assigned work, permitted status updates and requests         |
 
-These accounts are for fictional local development data only. Production rejects the four demo identities and weak passwords even when hosted test mode is enabled. Existing hosted sessions using the local administrator password are denied too. No password, role or associated administrator record is reset by this change. A separately authorized password rotation is required to restore secure hosted administrator access. Other installations retain their own bootstrap configuration.
+**Super Admin: enter admin / admin. There is no admin@viotech.test account.** The four additional accounts use their full email address; manager, developer, technician and employee alone are not login aliases.
+
+The user explicitly authorized these published credentials on the live **test** system. Render uses HOSTED_TEST_MODE=true for that exception. Normal production mode still rejects weak passwords and these demo identities. This is a public demonstration environment for fictional data. Document uploads remain disabled on the free hosted backend.
+
+For local use, run npm run dev and open http://127.0.0.1:5173. It starts the existing local PostgreSQL cluster automatically. Run npm run db:demo:local to provision missing local demo records; reruns preserve existing accounts, passwords and relationships. Local and hosted databases remain separate.
 
 ## Neon private testing
 
-Run `npm run dev:neon` only for separately authorized Neon development work. The local demo-account provisioning command never targets Neon. The existing administrator is **Lawrence Arvin Violan**; its password is not published here.
+Run `npm run dev:neon` only for separately authorized Neon development work. The local demo-account provisioning command never targets Neon. The existing administrator is **Lawrence Arvin Violan**; its demo login is documented above.
 
 Stop any existing local dev server first so ports 4000 and 5173 are available. Normal `npm run dev` still uses the local database. Neither command copies data between databases.
 
