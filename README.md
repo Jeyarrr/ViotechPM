@@ -1,5 +1,18 @@
 # ViotechPM
 
+## Current hosting (November 9, 2026)
+
+The frontend runs at https://viotechpm.vercel.app. The API runs on Neon Functions next to the existing Neon Postgres database; Render is no longer required by the live frontend.
+
+- API: https://br-bold-heart-ao6doyu9-api.compute.c-2.ap-southeast-1.aws.neon.tech
+- Health: `/api/health`; readiness: `/api/ready`.
+- Deploy the backend: `npm run build -w server`, then `neon deploy --project-id polished-breeze-77055606 --branch production --env <ignored-hosting-env-file> --no-env-pull`.
+- `neon.ts` declares the function. `server/src/neon.ts` preserves Express sessions, authorization and Socket.IO using a private loopback adapter. `scripts/bundle-neon.mjs` ships the Linux ARM64 Argon2 addon, including when deploying from Windows.
+- Vercel's `VITE_API_URL` points to the Neon API. Redeploy the frontend after changing it. `.vercelignore` excludes local databases and credentials from CLI uploads.
+- Keep hosting secrets in ignored local files. Existing demo accounts remain enabled and document uploads remain disabled. Both services remain on their free plans, subject to provider quotas.
+
+Older Render instructions below and in `docs/` are historical deployment notes.
+
 ## Demo Login Credentials
 
 **Live test system: https://viotechpm.vercel.app**
@@ -16,7 +29,7 @@ These five accounts are enabled on the live test system and in the local develop
 
 **Super Admin: enter admin / admin. There is no admin@viotech.test account.** The four additional accounts use their full email address; manager, developer, technician and employee alone are not login aliases.
 
-The user explicitly authorized these published credentials on the live **test** system. Render uses HOSTED_TEST_MODE=true for that exception. Normal production mode still rejects weak passwords and these demo identities. This is a public demonstration environment for fictional data. Document uploads remain disabled on the free hosted backend.
+The user explicitly authorized these published credentials on the live **test** system. The Neon API uses HOSTED_TEST_MODE=true for that exception. Normal production mode still rejects weak passwords and these demo identities. This is a public demonstration environment for fictional data. Document uploads remain disabled on the free hosted backend.
 
 For local use, run npm run dev and open http://127.0.0.1:5173. It starts the existing local PostgreSQL cluster automatically. Run npm run db:demo:local to provision missing local demo records; reruns preserve existing accounts, passwords and relationships. Local and hosted databases remain separate.
 

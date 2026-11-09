@@ -1,0 +1,15 @@
+.local/
+.neon
+.env
+.env.*
+**/.env
+**/.env.*
+node_modules/
+**/node_modules/
+**/dist/
+server/src/generated/
+test-results/
+playwright-report/
+coverage/
+*.log
+**/*.log
