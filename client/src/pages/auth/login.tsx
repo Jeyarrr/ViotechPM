@@ -33,9 +33,14 @@ type LoginInput = z.infer<typeof loginSchema>;
 
 export function LoginPage() {
   const auth = useAuth();
-  const login = useLogin();
   const navigate = useNavigate();
   const location = useLocation();
+  const login = useLogin(() => {
+    const from = (location.state as { from?: string } | null)?.from;
+    navigate(from?.startsWith('/') && !from.startsWith('//') && from !== '/login' ? from : '/', {
+      replace: true,
+    });
+  });
   const [visible, setVisible] = useState(false);
   const {
     register,
@@ -50,10 +55,6 @@ export function LoginPage() {
   const submit = handleSubmit(async (input) => {
     try {
       await login.mutateAsync(input);
-      const from = (location.state as { from?: string } | null)?.from;
-      navigate(from?.startsWith('/') && !from.startsWith('//') && from !== '/login' ? from : '/', {
-        replace: true,
-      });
     } catch {
       /* Mutation error is presented below. */
     }
@@ -208,7 +209,7 @@ export function LoginPage() {
         </motion.div>
         <div className="login-form-footer">
           <span>ViotechPM · Project Management</span>
-          <span>© {new Date().getFullYear()} Viotech</span>
+          <span>© 2025 Viotech</span>
         </div>
       </section>
     </div>

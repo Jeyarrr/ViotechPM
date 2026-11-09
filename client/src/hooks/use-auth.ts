@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { api, ApiError } from '@/services/api';
 import type { User } from '@/types/api';
+import { unfoldLogin } from '@/lib/login-transition';
 
 export function useAuth() {
   return useQuery({
@@ -17,15 +18,17 @@ export function useAuth() {
     retry: false,
   });
 }
-export function useLogin() {
+export function useLogin(onAuthenticated?: () => void) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (input: { email: string; password: string }) =>
       api.post<{ user: User }>('/auth/login', input),
-    onSuccess: (data) => {
-      client.clear();
-      client.setQueryData(['auth', 'me'], data.user);
-    },
+    onSuccess: (data) =>
+      unfoldLogin(() => {
+        client.clear();
+        client.setQueryData(['auth', 'me'], data.user);
+        onAuthenticated?.();
+      }),
   });
 }
 export function useLogout() {

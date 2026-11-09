@@ -2176,3 +2176,70 @@ svg {
     gap: 6px;
   }
 }
+
+/* The two login panels open away from the center after authentication succeeds. */
+:root[data-login-transition='unfold'] {
+  view-transition-name: none;
+}
+:root[data-login-transition='unfold'] .login-page .login-story {
+  view-transition-name: login-brand;
+}
+:root[data-login-transition='unfold'] .login-page .login-form-wrap {
+  view-transition-name: login-card;
+}
+:root[data-login-transition='unfold']::view-transition-group(*) {
+  animation: none;
+}
+:root[data-login-transition='unfold'] .app-shell {
+  animation: login-workspace-in 760ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+:root[data-login-transition='unfold']::view-transition-old(login-brand),
+:root[data-login-transition='unfold']::view-transition-old(login-card) {
+  backface-visibility: hidden;
+  animation-duration: 760ms;
+  animation-timing-function: cubic-bezier(0.65, 0, 0.2, 1);
+  animation-fill-mode: both;
+}
+:root[data-login-transition='unfold']::view-transition-old(login-brand) {
+  transform-origin: left center;
+  animation-name: login-unfold-left;
+}
+:root[data-login-transition='unfold']::view-transition-old(login-card) {
+  transform-origin: right center;
+  animation-name: login-unfold-right;
+}
+@keyframes login-workspace-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes login-unfold-left {
+  55% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: perspective(1400px) translateX(-12%) rotateY(-100deg);
+  }
+}
+@keyframes login-unfold-right {
+  55% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: perspective(1400px) translateX(12%) rotateY(100deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-login-transition='unfold']::view-transition-group(*),
+  :root[data-login-transition='unfold']::view-transition-old(*),
+  :root[data-login-transition='unfold']::view-transition-new(*) {
+    animation: none;
+  }
+}
